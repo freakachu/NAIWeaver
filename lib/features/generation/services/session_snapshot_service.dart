@@ -34,6 +34,10 @@ class SessionSnapshot {
   final List<DirectorReference> directorReferences;
   final List<VibeTransfer> vibeTransfers;
 
+  /// Per-model steps / guidance memory (ModelSettingsMemory.toJson). Null
+  /// when the snapshot predates it.
+  final Map<String, dynamic>? modelSettingsMemory;
+
   SessionSnapshot({
     required this.prompt,
     required this.negativePrompt,
@@ -60,6 +64,7 @@ class SessionSnapshot {
     required this.interactions,
     required this.directorReferences,
     required this.vibeTransfers,
+    this.modelSettingsMemory,
   });
 
   Map<String, dynamic> toJson() => {
@@ -91,6 +96,8 @@ class SessionSnapshot {
         'director_references':
             directorReferences.map((r) => r.toJson()).toList(),
         'vibe_transfers': vibeTransfers.map((v) => v.toJson()).toList(),
+        if (modelSettingsMemory != null)
+          'model_settings_memory': modelSettingsMemory,
       };
 
   factory SessionSnapshot.fromJson(Map<String, dynamic> json) {
@@ -144,6 +151,9 @@ class SessionSnapshot {
       interactions: interactions,
       directorReferences: directorReferences,
       vibeTransfers: vibeTransfers,
+      modelSettingsMemory: json['model_settings_memory'] is Map
+          ? Map<String, dynamic>.from(json['model_settings_memory'] as Map)
+          : null,
     );
   }
 }

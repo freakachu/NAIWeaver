@@ -1108,6 +1108,12 @@ abstract class AppLocalizations {
   /// **'Styles'**
   String get panelStyles;
 
+  /// No description provided for @modelStepsRemembered.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps and CFG are remembered per model (V4.5 / V5)'**
+  String get modelStepsRemembered;
+
   /// No description provided for @panelManageStyles.
   ///
   /// In en, this message translates to:
@@ -2248,6 +2254,24 @@ abstract class AppLocalizations {
   /// **'SAVE AS NEW'**
   String get styleSaveAsNew;
 
+  /// No description provided for @styleRenderOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'APPLY CUSTOM STEPS AND CFG FOR THIS STYLE'**
+  String get styleRenderOverride;
+
+  /// No description provided for @styleSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'STEPS'**
+  String get styleSteps;
+
+  /// No description provided for @styleCfg.
+  ///
+  /// In en, this message translates to:
+  /// **'CFG (GUIDANCE)'**
+  String get styleCfg;
+
   /// No description provided for @styleOverwriteTitle.
   ///
   /// In en, this message translates to:
@@ -2260,12 +2284,6 @@ abstract class AppLocalizations {
   /// **'A STYLE WITH THE NAME \'\'{name}\'\' ALREADY EXISTS. OVERWRITE?'**
   String styleOverwriteConfirm(String name);
 
-  /// No description provided for @refPreciseReferences.
-  ///
-  /// In en, this message translates to:
-  /// **'PRECISE REFERENCES'**
-  String get refPreciseReferences;
-
   /// No description provided for @styleWorksWith.
   ///
   /// In en, this message translates to:
@@ -2277,6 +2295,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} styles hidden (made for {model})'**
   String panelStylesHidden(int count, String model);
+
+  /// No description provided for @refPreciseReferences.
+  ///
+  /// In en, this message translates to:
+  /// **'PRECISE REFERENCES'**
+  String get refPreciseReferences;
 
   /// No description provided for @refVibeTransfer.
   ///
@@ -5420,12 +5444,6 @@ abstract class AppLocalizations {
   /// **'Show Seed Control'**
   String get settingsSeedControl;
 
-  /// No description provided for @settingsSeedControlDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Display seed value and randomize toggle on the generation screen'**
-  String get settingsSeedControlDesc;
-
   /// No description provided for @enhanceMaxChip.
   ///
   /// In en, this message translates to:
@@ -5443,6 +5461,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'~{anlas} ANLAS (EST.)'**
   String enhanceEstimatedCost(int anlas);
+
+  /// No description provided for @settingsSeedControlDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Display seed value and randomize toggle on the generation screen'**
+  String get settingsSeedControlDesc;
 
   /// No description provided for @settingsShowTooltips.
   ///

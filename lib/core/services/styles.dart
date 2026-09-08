@@ -20,6 +20,11 @@ class PromptStyle {
   static final Set<NaiModelFamily> allModels =
       Set.unmodifiable(NaiModelFamily.values.toSet());
 
+  /// Optional render override: steps and prompt guidance (CFG scale) to
+  /// apply while this style is selected. Null = no override for that value.
+  final double? steps;
+  final double? scale;
+
   PromptStyle({
     required this.name,
     this.prefix = "",
@@ -27,9 +32,14 @@ class PromptStyle {
     this.negativeContent = "",
     this.isDefault = false,
     Set<NaiModelFamily>? models,
+    this.steps,
+    this.scale,
   }) : models = (models == null || models.isEmpty)
             ? allModels
             : Set.unmodifiable(models);
+
+  /// True when selecting this style should push its steps / guidance.
+  bool get hasRenderOverride => steps != null || scale != null;
 
   /// True when the style is meant for [model]'s family.
   bool supports(NaiModel model) => models.contains(model.family);
@@ -44,6 +54,9 @@ class PromptStyle {
     String? negativeContent,
     bool? isDefault,
     Set<NaiModelFamily>? models,
+    double? steps,
+    double? scale,
+    bool clearRenderOverride = false,
   }) =>
       PromptStyle(
         name: name ?? this.name,
@@ -52,6 +65,8 @@ class PromptStyle {
         negativeContent: negativeContent ?? this.negativeContent,
         isDefault: isDefault ?? this.isDefault,
         models: models ?? this.models,
+        steps: clearRenderOverride ? null : (steps ?? this.steps),
+        scale: clearRenderOverride ? null : (scale ?? this.scale),
       );
 
   Map<String, dynamic> toJson() => {
@@ -61,6 +76,8 @@ class PromptStyle {
         'negativeContent': negativeContent,
         'isDefault': isDefault,
         'models': models.map((m) => m.id).toList(),
+        if (steps != null) 'steps': steps,
+        if (scale != null) 'scale': scale,
       };
 
   /// A missing, empty or unrecognisable `models` list means "every model", so
@@ -72,6 +89,9 @@ class PromptStyle {
         negativeContent: json['negativeContent'] ?? "",
         isDefault: json['isDefault'] ?? false,
         models: parseStyleModels(json['models']),
+        // Missing / non-numeric → no override.
+        steps: (json['steps'] is num) ? (json['steps'] as num).toDouble() : null,
+        scale: (json['scale'] is num) ? (json['scale'] as num).toDouble() : null,
       );
 }
 

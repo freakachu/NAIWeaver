@@ -38,6 +38,7 @@ class PreferencesService {
   static const String _keyFurryMode = 'furry_mode';
   static const String _keyUseCurated = 'use_curated';
   static const String _keyNaiModel = 'nai_model';
+  static const String _keyModelRenderSettings = 'model_render_settings';
   static const String _keyImg2ImgImportPrompt = 'img2img_import_prompt';
   static const String _keyShowSeedControl = 'show_seed_control';
   static const String _keyShowAnlasTracker = 'show_anlas_tracker';
@@ -303,6 +304,21 @@ class PreferencesService {
     await _prefs.setString(_keyNaiModel, model.id);
     // Keep the legacy flag coherent for older builds / backups.
     await _prefs.setBool(_keyUseCurated, model.isCurated);
+  }
+
+  // — Per-model steps / guidance memory —
+
+  /// JSON map of model family → {steps, scale} (see ModelSettingsMemory).
+  /// Kept here as well as in the session snapshot so it survives
+  /// rememberSession=off. Empty string = nothing remembered.
+  String get modelRenderSettings => _prefs.getString(_keyModelRenderSettings) ?? '';
+
+  Future<void> setModelRenderSettings(String json) async {
+    if (json.isEmpty || json == '{}') {
+      await _prefs.remove(_keyModelRenderSettings);
+    } else {
+      await _prefs.setString(_keyModelRenderSettings, json);
+    }
   }
 
   // — Curated Model (legacy; prefer [naiModel]) —
@@ -595,7 +611,7 @@ class PreferencesService {
     _keyExportAlbumName, _keySettingsSectionOrder, _keySmartStyleImport,
     _keyCharInsertTarget,
     _keyRememberSession, _keyLocale, _keyFurryMode, _keyUseCurated,
-    _keyNaiModel,
+    _keyNaiModel, _keyModelRenderSettings,
     _keyImg2ImgImportPrompt, _keyShowSeedControl, _keyShowAnlasTracker,
     _keyCanvasAutoSave, _keyCustomResolutions, _keyCharacterEditorMode,
     _keyFilenamePattern, _keySavePathPattern,

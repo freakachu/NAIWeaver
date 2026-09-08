@@ -557,6 +557,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get panelStyles => 'スタイル';
 
   @override
+  String get modelStepsRemembered => 'ステップ数と CFG はモデルごと（V4.5 / V5）に記憶されます';
+
+  @override
   String get panelManageStyles => 'スタイル管理';
 
   @override
@@ -1153,6 +1156,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get styleSaveAsNew => '新規として保存';
 
   @override
+  String get styleRenderOverride => 'このスタイルにステップ数と CFG を個別設定';
+
+  @override
+  String get styleSteps => 'ステップ';
+
+  @override
+  String get styleCfg => 'CFG（ガイダンス）';
+
+  @override
   String get styleOverwriteTitle => 'スタイルを上書き';
 
   @override
@@ -1161,7 +1173,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  @override
   String get styleWorksWith => '対応モデル';
 
   @override
@@ -1169,6 +1180,7 @@ class AppLocalizationsJa extends AppLocalizations {
     return '$count 件のスタイルを非表示（$model 向け）';
   }
 
+  @override
   String get refPreciseReferences => 'プリサイスリファレンス';
 
   @override
@@ -2866,9 +2878,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsSeedControl => 'シード表示';
 
   @override
-  String get settingsSeedControlDesc => '生成画面にシード値とランダム切り替えを表示';
-
-  @override
   String get enhanceMaxChip => '最大 ✨';
 
   @override
@@ -2879,6 +2888,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String enhanceEstimatedCost(int anlas) {
     return '約 $anlas Anlas（推定）';
   }
+
+  @override
+  String get settingsSeedControlDesc => '生成画面にシード値とランダム切り替えを表示';
 
   @override
   String get settingsShowTooltips => 'ツールチップ表示';

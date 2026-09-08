@@ -554,6 +554,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get panelStyles => '风格';
 
   @override
+  String get modelStepsRemembered => '步数和 CFG 会按模型（V4.5 / V5）分别记住';
+
+  @override
   String get panelManageStyles => '管理风格';
 
   @override
@@ -1150,6 +1153,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get styleSaveAsNew => '另存为新风格';
 
   @override
+  String get styleRenderOverride => '为此风格单独设置步数和 CFG';
+
+  @override
+  String get styleSteps => '步数';
+
+  @override
+  String get styleCfg => 'CFG（引导）';
+
+  @override
   String get styleOverwriteTitle => '覆盖风格';
 
   @override
@@ -1158,7 +1170,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  @override
   String get styleWorksWith => '适用模型';
 
   @override
@@ -1166,6 +1177,7 @@ class AppLocalizationsZh extends AppLocalizations {
     return '已隐藏 $count 个风格（为 $model 制作）';
   }
 
+  @override
   String get refPreciseReferences => '精准参考';
 
   @override
@@ -2858,9 +2870,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSeedControl => '显示种子控制';
 
   @override
-  String get settingsSeedControlDesc => '在生成界面显示种子值和随机切换';
-
-  @override
   String get enhanceMaxChip => '最大 ✨';
 
   @override
@@ -2871,6 +2880,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String enhanceEstimatedCost(int anlas) {
     return '约 $anlas Anlas（估算）';
   }
+
+  @override
+  String get settingsSeedControlDesc => '在生成界面显示种子值和随机切换';
 
   @override
   String get settingsShowTooltips => '显示提示';

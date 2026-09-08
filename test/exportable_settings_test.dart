@@ -20,6 +20,7 @@ void main() {
         'app_locale': 'zh',
         'gallery_grid_columns': 4,
         'jukebox_volume': 0.4,
+        'model_render_settings': '{"v5":{"steps":17,"scale":6}}',
         // excluded — security
         'pin_lock_hash': 'secret',
         'pin_biometric_enabled': true,
@@ -35,6 +36,8 @@ void main() {
       expect(exported['app_locale'], 'zh');
       expect(exported['gallery_grid_columns'], 4);
       expect(exported['jukebox_volume'], 0.4);
+      // Per-model steps / CFG memory travels with a backup.
+      expect(exported['model_render_settings'], '{"v5":{"steps":17,"scale":6}}');
 
       // Security and device-local keys must never leak into a shareable backup.
       expect(exported.containsKey('pin_lock_hash'), isFalse);
@@ -51,6 +54,7 @@ void main() {
         'furry_mode': true,
         'app_locale': 'ja',
         'gallery_grid_columns': 6,
+        'model_render_settings': '{"v45":{"steps":23,"scale":5}}',
         // not on the allowlist — must be ignored
         'pin_lock_hash': 'nope',
       });
@@ -58,6 +62,7 @@ void main() {
       expect(service.furryMode, true);
       expect(service.locale, 'ja');
       expect(service.galleryGridColumns, 6);
+      expect(service.modelRenderSettings, '{"v45":{"steps":23,"scale":5}}');
       // Re-export should not surface the ignored key.
       expect(service.exportableSettings().containsKey('pin_lock_hash'), isFalse);
     });

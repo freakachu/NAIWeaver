@@ -45,6 +45,7 @@ import '../../characters/providers/character_library_notifier.dart';
 import 'package:dio/dio.dart';
 import '../services/metadata_import_service.dart';
 import '../services/session_snapshot_service.dart';
+import '../services/model_settings_memory.dart';
 import '../services/character_manager.dart';
 import '../services/preset_service.dart';
 
@@ -300,6 +301,9 @@ class GenerationNotifier extends ChangeNotifier {
   late final CharacterManager _characterManager;
   late final PresetFileService _presetService;
 
+  /// Per-model steps / guidance memory + per-style override (item 5).
+  final RenderSettingsCoordinator _render = RenderSettingsCoordinator();
+
   TagService get tagService => _tagService;
   WildcardService get wildcardService => _wildcardService;
   String get presetsFilePath => _presetService.presetsFilePath;
@@ -431,6 +435,10 @@ class GenerationNotifier extends ChangeNotifier {
     );
 
     final apiKey = await _prefs.getApiKey();
+    // Per-model steps / guidance: prefs keep it alive with rememberSession
+    // off; the session snapshot (restored below) refreshes it when on.
+    _render.memory = ModelSettingsMemory.decode(_prefs.modelRenderSettings);
+    final remembered = _render.memory.entryFor(_prefs.naiModel.family);
     _service = NovelAIService(apiKey);
     _textService = NaiTextService(apiKey);
     _vibeTransferNotifier?.updateService(_service);
@@ -442,6 +450,8 @@ class GenerationNotifier extends ChangeNotifier {
       presets: presets,
       styles: styles,
       activeStyleNames: initialActiveStyles,
+      steps: remembered?.steps,
+      scale: remembered?.scale,
       apiKey: apiKey,
       autoSaveImages: _prefs.autoSaveImages,
       showDirectorRefShelf: _prefs.showDirectorRefShelf,
@@ -457,6 +467,7 @@ class GenerationNotifier extends ChangeNotifier {
       characterEditorMode: _prefs.characterEditorMode,
     );
     _propagateModel();
+    _syncStyleOverride();
     loadCharacterPresets();
     notifyListeners();
 
@@ -498,6 +509,36 @@ class GenerationNotifier extends ChangeNotifier {
   int get hiddenStyleCountForCurrentModel =>
       hiddenStyleCount(_state.styles, _state.model);
 
+  RenderValues get _currentRender => (steps: _state.steps, scale: _state.scale);
+
+  /// Active styles resolved in selection order (unknown names skipped).
+  List<PromptStyle> _activeStyles() => _state.activeStyleNames
+      .map((n) => _state.styles.where((s) => s.name == n).firstOrNull)
+      .whereType<PromptStyle>()
+      .toList();
+
+  /// Applies the first active style's steps / guidance override, or lifts it
+  /// (restoring the per-model values) once no active style has one.
+  void _syncStyleOverride() {
+    final v = _render.syncStyleOverride(
+      activeStyles: _activeStyles(),
+      stylesEnabled: _state.isStyleEnabled,
+      family: _state.model.family,
+      current: _currentRender,
+    );
+    if (v != _currentRender) _state = _state.copyWith(steps: v.steps, scale: v.scale);
+  }
+
+  /// Name of the style whose steps / guidance are currently applied, if any.
+  String? get renderOverrideStyleName => _render.overrideStyleName;
+
+  /// Steps / guidance remembered per model family (read-only view).
+  ModelSettingsMemory get modelSettingsMemory => _render.memory;
+
+  void _persistModelMemory() {
+    _prefs.setModelRenderSettings(_render.memory.encode());
+  }
+
   /// Pushes the active model to the helpers that issue their own requests.
   void _propagateModel() {
     _vibeTransferNotifier?.updateModel(_state.model);
@@ -508,6 +549,7 @@ class GenerationNotifier extends ChangeNotifier {
     final presets = await _presetService.loadPresets();
     final styles = await _presetService.loadStyles();
     _state = _state.copyWith(presets: presets, styles: styles);
+    _syncStyleOverride();
     notifyListeners();
   }
 
@@ -643,14 +685,28 @@ class GenerationNotifier extends ChangeNotifier {
   }) {
     if (furryMode != null) _prefs.setFurryMode(furryMode);
     if (model != null) _prefs.setNaiModel(model);
-    // A style made only for the previous family is swapped for the new
-    // family's default (or dropped); styles that target both are untouched.
-    if (model != null && model.family != _state.model.family) {
+    final userEditedRender = steps != null || scale != null;
+    final oldFamily = _state.model.family;
+    if (model != null && model.family != oldFamily) {
+      // A style made only for the previous family is swapped for the new
+      // family's default (or dropped); styles that target both are untouched.
       activeStyleNames = reconcileActiveStylesForModel(
         activeStyleNames: activeStyleNames ?? _state.activeStyleNames,
         styles: _state.styles,
         model: model,
       );
+      // Steps / guidance: park the current values under the old family and
+      // bring back what the user last used on the new one. Explicit
+      // arguments win; a never-used family keeps the current values — model
+      // defaults are never applied implicitly (that is the DEFAULTS button).
+      final remembered = _render.switchFamily(
+        from: oldFamily,
+        to: model.family,
+        current: _currentRender,
+      );
+      steps ??= remembered.steps;
+      scale ??= remembered.scale;
+      _persistModelMemory();
     }
     _state = _state.copyWith(
       width: width,
@@ -673,6 +729,13 @@ class GenerationNotifier extends ChangeNotifier {
       model: model,
       transparentBackground: transparentBackground,
     );
+    if (userEditedRender) {
+      _render.rememberEdit(_state.model.family, _currentRender);
+      _persistModelMemory();
+    }
+    if (model != null || activeStyleNames != null || isStyleEnabled != null) {
+      _syncStyleOverride();
+    }
     if (model != null) _propagateModel();
     notifyListeners();
   }
@@ -687,6 +750,8 @@ class GenerationNotifier extends ChangeNotifier {
       scale: d.scale,
       sampler: d.sampler,
     );
+    _render.rememberEdit(_state.model.family, _currentRender);
+    _persistModelMemory();
     notifyListeners();
   }
 
@@ -1062,6 +1127,7 @@ class GenerationNotifier extends ChangeNotifier {
       current.add(name);
     }
     _state = _state.copyWith(activeStyleNames: current);
+    _syncStyleOverride();
     notifyListeners();
   }
 
@@ -1482,6 +1548,8 @@ class GenerationNotifier extends ChangeNotifier {
         ? NaiModel.tryParse(result.model)
         : null;
 
+    // Imported steps / guidance are explicit: park the current values first.
+    if (!_render.overrideActive) _render.rememberEdit(_state.model.family, _currentRender);
     _state = _state.copyWith(
       width: categories.contains(ImportCategory.settings) ? result.width : null,
       height: categories.contains(ImportCategory.settings) ? result.height : null,
@@ -1514,6 +1582,11 @@ class GenerationNotifier extends ChangeNotifier {
       _prefs.setNaiModel(importedModel);
       _propagateModel();
     }
+    if (categories.contains(ImportCategory.settings)) {
+      _render.rememberEdit(_state.model.family, _currentRender);
+      _persistModelMemory();
+    }
+    _syncStyleOverride();
     notifyListeners();
   }
 
@@ -1576,6 +1649,9 @@ class GenerationNotifier extends ChangeNotifier {
             styles: _state.styles,
             model: pinnedModel,
           );
+    // The preset's steps / guidance are explicit: park the current values
+    // under the current family first, then remember the preset's under its.
+    if (!_render.overrideActive) _render.rememberEdit(_state.model.family, _currentRender);
     _state = _state.copyWith(
       activeStyleNames: reconciledStyles,
       width: preset.width,
@@ -1609,6 +1685,9 @@ class GenerationNotifier extends ChangeNotifier {
       _prefs.setNaiModel(pinnedModel);
       _propagateModel();
     }
+    _render.rememberEdit(_state.model.family, _currentRender);
+    _persistModelMemory();
+    _syncStyleOverride();
     notifyListeners();
   }
 
@@ -1621,6 +1700,8 @@ class GenerationNotifier extends ChangeNotifier {
   Future<void> refreshStyles() async {
     final styles = await _presetService.loadStyles();
     _state = _state.copyWith(styles: styles);
+    // A style's override may have been added, edited or removed.
+    _syncStyleOverride();
     notifyListeners();
   }
 
@@ -1904,6 +1985,7 @@ class GenerationNotifier extends ChangeNotifier {
       interactions: _state.interactions,
       directorReferences: _directorRefNotifier?.references.toList() ?? [],
       vibeTransfers: _vibeTransferNotifier?.vibes.toList() ?? [],
+      modelSettingsMemory: _render.memory.toJson(),
     );
     await _sessionService.save(snapshot);
   }
@@ -1912,6 +1994,11 @@ class GenerationNotifier extends ChangeNotifier {
     if (!_prefs.rememberSession) return;
     final snapshot = await _sessionService.restore();
     if (snapshot == null) return;
+
+    // The snapshot is newer than prefs; an old snapshot without the key
+    // leaves the prefs copy in place.
+    final memory = ModelSettingsMemory.fromJson(snapshot.modelSettingsMemory);
+    if (!memory.isEmpty) _render.memory = memory;
 
     promptController.text = snapshot.prompt;
     negativePromptController.text = snapshot.negativePrompt;
@@ -1941,6 +2028,7 @@ class GenerationNotifier extends ChangeNotifier {
       interactions: snapshot.interactions,
     );
     _propagateModel();
+    _syncStyleOverride();
 
     // Restore director references
     if (snapshot.directorReferences.isNotEmpty) {

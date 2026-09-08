@@ -31,6 +31,7 @@ class StyleEditor extends StatelessWidget {
         onStylesChanged: () => genNotifier.refreshStyles(),
         initialStyleName: initialStyleName,
         characterSuggestionsFor: (q) => charLib.suggestionTags(q),
+        overrideSeed: (steps: genNotifier.state.steps, scale: genNotifier.state.scale),
       ),
       child: _StyleEditorContent(hasInitialStyle: initialStyleName != null),
     );
@@ -436,6 +437,8 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
                 _buildSectionTitle(context.l.styleWorksWith, t),
                 _buildModelSelector(notifier, t),
                 const SizedBox(height: 24),
+                _buildRenderOverride(context, notifier, t),
+                const SizedBox(height: 24),
                 _buildSectionTitle(context.l.styleTargetPrompt, t),
                 _buildTargetSelector(notifier, t),
                 const SizedBox(height: 24),
@@ -487,6 +490,7 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
     required TextEditingController controller,
     required String label,
     int maxLines = 1,
+    TextInputType? keyboardType,
     required Function(String) onChanged,
     required VisionTokens t,
   }) {
@@ -498,6 +502,7 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           onChanged: onChanged,
           style: TextStyle(color: t.textSecondary, fontSize: t.fontSize(13), height: 1.5),
           decoration: InputDecoration(
@@ -507,6 +512,64 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
             contentPadding: const EdgeInsets.all(12),
           ),
         ),
+      ],
+    );
+  }
+
+  /// "Apply custom steps and CFG for this style": a switch that reveals the
+  /// two fields. Off = no override (both null), so the editor's per-model
+  /// values stay in charge.
+  Widget _buildRenderOverride(BuildContext context, StyleNotifier notifier, VisionTokens t) {
+    final style = notifier.state.selectedStyle!;
+    final enabled = style.hasRenderOverride;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Switch(
+              value: enabled,
+              onChanged: notifier.setRenderOverrideEnabled,
+              activeThumbColor: t.textPrimary,
+              activeTrackColor: t.textDisabled,
+              inactiveThumbColor: t.textMinimal,
+              inactiveTrackColor: t.background,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l.styleRenderOverride,
+                style: TextStyle(color: t.textTertiary, fontSize: t.fontSize(8), letterSpacing: 2, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        if (enabled) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: notifier.stepsController,
+                  label: context.l.styleSteps,
+                  keyboardType: TextInputType.number,
+                  onChanged: notifier.setOverrideSteps,
+                  t: t,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: notifier.scaleController,
+                  label: context.l.styleCfg,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: notifier.setOverrideScale,
+                  t: t,
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

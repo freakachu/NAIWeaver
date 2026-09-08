@@ -569,6 +569,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get panelStyles => 'Styles';
 
   @override
+  String get modelStepsRemembered =>
+      'Steps and CFG are remembered per model (V4.5 / V5)';
+
+  @override
   String get panelManageStyles => 'Manage Styles';
 
   @override
@@ -1182,6 +1186,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get styleSaveAsNew => 'SAVE AS NEW';
 
   @override
+  String get styleRenderOverride => 'APPLY CUSTOM STEPS AND CFG FOR THIS STYLE';
+
+  @override
+  String get styleSteps => 'STEPS';
+
+  @override
+  String get styleCfg => 'CFG (GUIDANCE)';
+
+  @override
   String get styleOverwriteTitle => 'OVERWRITE STYLE';
 
   @override
@@ -1190,7 +1203,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  @override
   String get styleWorksWith => 'WORKS WITH';
 
   @override
@@ -1198,6 +1210,7 @@ class AppLocalizationsEn extends AppLocalizations {
     return '$count styles hidden (made for $model)';
   }
 
+  @override
   String get refPreciseReferences => 'PRECISE REFERENCES';
 
   @override
@@ -2915,9 +2928,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSeedControl => 'Show Seed Control';
 
   @override
-  String get settingsSeedControlDesc =>
-      'Display seed value and randomize toggle on the generation screen';
-  @override
   String get enhanceMaxChip => 'MAX ✨';
 
   @override
@@ -2929,6 +2939,9 @@ class AppLocalizationsEn extends AppLocalizations {
     return '~$anlas ANLAS (EST.)';
   }
 
+  @override
+  String get settingsSeedControlDesc =>
+      'Display seed value and randomize toggle on the generation screen';
 
   @override
   String get settingsShowTooltips => 'Show Tooltips';

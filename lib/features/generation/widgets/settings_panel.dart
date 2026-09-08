@@ -806,7 +806,7 @@ class _ExpandedSettingsContentState extends State<ExpandedSettingsContent> {
       final selected = m == model;
       final color = m.isV5 ? t.accent : const Color(0xFF4CAF50);
       return Tooltip(
-        message: m.capsHint,
+        message: '${m.capsHint}\n${context.l.modelStepsRemembered}',
         child: InkWell(
           onTap: () => notifier.updateSettings(model: m),
           borderRadius: BorderRadius.circular(4),

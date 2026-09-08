@@ -58,6 +58,14 @@ class StyleNotifier extends ChangeNotifier {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
 
+  /// Text for the per-style steps / guidance override fields.
+  final TextEditingController stepsController = TextEditingController();
+  final TextEditingController scaleController = TextEditingController();
+
+  /// Values the override starts from when switched on — the editor's current
+  /// steps / guidance, so "custom for this style" begins at what is in use.
+  final ({double steps, double scale}) overrideSeed;
+
   StyleNotifier({
     required TagService tagService,
     required WildcardService wildcardService,
@@ -66,6 +74,7 @@ class StyleNotifier extends ChangeNotifier {
     required this.onStylesChanged,
     String? initialStyleName,
     this.characterSuggestionsFor,
+    this.overrideSeed = (steps: 28, scale: 5),
   }) : _tagService = tagService,
        _wildcardService = wildcardService,
        _stylesFilePath = stylesFilePath {
@@ -88,11 +97,55 @@ class StyleNotifier extends ChangeNotifier {
     if (style != null) {
       nameController.text = style.name;
       _updateContentController();
+      _updateOverrideControllers(style);
     } else {
       nameController.clear();
       contentController.clear();
+      stepsController.clear();
+      scaleController.clear();
     }
     notifyListeners();
+  }
+
+  void _updateOverrideControllers(PromptStyle style) {
+    stepsController.text = style.steps == null ? '' : _fmt(style.steps!);
+    scaleController.text = style.scale == null ? '' : _fmt(style.scale!);
+  }
+
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  /// Switches the per-style steps / guidance override on (seeded from
+  /// [overrideSeed]) or off (both cleared).
+  void setRenderOverrideEnabled(bool enabled) {
+    final current = _state.selectedStyle;
+    if (current == null) return;
+    if (enabled) {
+      updateCurrentStyle(
+        steps: current.steps ?? overrideSeed.steps,
+        scale: current.scale ?? overrideSeed.scale,
+      );
+      _updateOverrideControllers(_state.selectedStyle!);
+    } else {
+      updateCurrentStyle(clearRenderOverride: true);
+      stepsController.clear();
+      scaleController.clear();
+    }
+  }
+
+  /// Parses the STEPS field (1–50, whole numbers). Unparseable input leaves
+  /// the stored value alone.
+  void setOverrideSteps(String text) {
+    final v = double.tryParse(text.trim());
+    if (v == null) return;
+    updateCurrentStyle(steps: v.clamp(1, 50).roundToDouble());
+  }
+
+  /// Parses the CFG field (1–30). Unparseable input leaves the value alone.
+  void setOverrideScale(String text) {
+    final v = double.tryParse(text.trim());
+    if (v == null) return;
+    updateCurrentStyle(scale: v.clamp(1.0, 30.0).toDouble());
   }
 
   void setEditingNegative(bool value) {
@@ -119,11 +172,16 @@ class StyleNotifier extends ChangeNotifier {
     bool? isPrefix,
     bool? isDefault,
     Set<NaiModelFamily>? models,
+    double? steps,
+    double? scale,
+    bool clearRenderOverride = false,
   }) {
     if (_state.selectedStyle == null) return;
 
     final finalContent = content ?? contentController.text;
     final current = _state.selectedStyle!;
+    final overrideSteps = clearRenderOverride ? null : (steps ?? current.steps);
+    final overrideScale = clearRenderOverride ? null : (scale ?? current.scale);
 
     PromptStyle updated;
     if (_state.isEditingNegative) {
@@ -134,6 +192,8 @@ class StyleNotifier extends ChangeNotifier {
         negativeContent: finalContent,
         isDefault: isDefault ?? current.isDefault,
         models: models ?? current.models,
+        steps: overrideSteps,
+        scale: overrideScale,
       );
     } else {
       final currentIsPrefix = isPrefix ?? (current.prefix.isNotEmpty || current.suffix.isEmpty);
@@ -144,6 +204,8 @@ class StyleNotifier extends ChangeNotifier {
         negativeContent: current.negativeContent,
         isDefault: isDefault ?? current.isDefault,
         models: models ?? current.models,
+        steps: overrideSteps,
+        scale: overrideScale,
       );
     }
 
@@ -333,6 +395,8 @@ class StyleNotifier extends ChangeNotifier {
   void dispose() {
     nameController.dispose();
     contentController.dispose();
+    stepsController.dispose();
+    scaleController.dispose();
     super.dispose();
   }
 }
