@@ -128,78 +128,134 @@ class AdvancedSettingsPanel extends StatelessWidget {
           collapsedH,
         );
 
-        return AnimatedPositioned(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: isExpanded ? expandedH : collapsedH,
-          child: GestureDetector(
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity < -300 && !isExpanded) notifier.toggleSettings();
-              if (velocity > 300 && isExpanded) notifier.toggleSettings();
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: t.surfaceHigh,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                border: Border.all(color: t.borderStrong),
-                boxShadow: [
-                  BoxShadow(color: Colors.white.withValues(alpha: 0.05), blurRadius: 20, spreadRadius: 5),
-                ],
-              ),
-              child: OverflowBox(
-                alignment: Alignment.topCenter,
-                maxHeight: expandedH,
-                minHeight: collapsedH,
-                child: Column(
-                  children: [
-                    // Grabber
-                    InkWell(
-                      onTap: notifier.toggleSettings,
-                      child: Container(
-                        width: double.infinity,
-                        height: headerH,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: t.textDisabled,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
+        return SettingsPanelFrame(
+          isExpanded: isExpanded,
+          collapsedHeight: collapsedH,
+          expandedHeight: expandedH,
+          headerHeight: headerH,
+          mobile: mobile,
+          collapsedLabel: context.l.panelAdvancedSettings.toUpperCase(),
+          onToggle: notifier.toggleSettings,
+          expandedContent: isExpanded
+              ? ExpandedSettingsContent(
+                  onManageStyles: onManageStyles,
+                  onEditStyle: onEditStyle,
+                  onSavePreset: onSavePreset,
+                )
+              : null,
+        );
+      },
+    );
+  }
+}
+
+/// The settings panel's chrome: the animated slot pinned to the bottom of the
+/// Stack, tap / fling handling, and the container that keeps the expanded
+/// content laid out at full height while the slot animates.
+///
+/// Pure layout with no providers (colours come from the theme, the label and
+/// content are passed in), so the hit-test geometry of the main-screen Stack
+/// can be pumped in a widget test without a [GenerationNotifier].
+///
+/// The [OverflowBox] lets the content overflow the slot during the
+/// expand / collapse animation. It is wrapped in a [ClipRect] so nothing of
+/// that overflow — paint or pointer — can leak outside the slot: the panel is
+/// the last Stack child, so it hit-tests first, and an unclipped overflow
+/// would sit between the user's fingers and the image viewer's pinch
+/// recogniser (the mobile "second pinch ignores the bottom half" report).
+class SettingsPanelFrame extends StatelessWidget {
+  final bool isExpanded;
+  final double collapsedHeight;
+  final double expandedHeight;
+  final double headerHeight;
+  final bool mobile;
+  final String collapsedLabel;
+  final VoidCallback onToggle;
+
+  /// Built only while expanded; null keeps the slot to the grabber.
+  final Widget? expandedContent;
+
+  const SettingsPanelFrame({
+    super.key,
+    required this.isExpanded,
+    required this.collapsedHeight,
+    required this.expandedHeight,
+    required this.headerHeight,
+    required this.mobile,
+    required this.collapsedLabel,
+    required this.onToggle,
+    this.expandedContent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: isExpanded ? expandedHeight : collapsedHeight,
+      child: GestureDetector(
+        onVerticalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity < -300 && !isExpanded) onToggle();
+          if (velocity > 300 && isExpanded) onToggle();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: t.surfaceHigh,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            border: Border.all(color: t.borderStrong),
+            boxShadow: [
+              BoxShadow(color: Colors.white.withValues(alpha: 0.05), blurRadius: 20, spreadRadius: 5),
+            ],
+          ),
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              maxHeight: expandedHeight,
+              minHeight: collapsedHeight,
+              child: Column(
+                children: [
+                  // Grabber
+                  InkWell(
+                    onTap: onToggle,
+                    child: Container(
+                      width: double.infinity,
+                      height: headerHeight,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: t.textDisabled,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            if (!isExpanded)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(context.l.panelAdvancedSettings.toUpperCase(), style: TextStyle(fontSize: t.fontSize(mobile ? 10 : 9), letterSpacing: 2, color: t.secondaryText, fontWeight: FontWeight.bold)),
-                              ),
-                          ],
-                        ),
+                          ),
+                          if (!isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(collapsedLabel, style: TextStyle(fontSize: t.fontSize(mobile ? 10 : 9), letterSpacing: 2, color: t.secondaryText, fontWeight: FontWeight.bold)),
+                            ),
+                        ],
                       ),
                     ),
+                  ),
 
-                    // Scrollable Content — only watch full state when expanded
-                    if (isExpanded)
-                      Expanded(
-                        child: ExpandedSettingsContent(
-                          onManageStyles: onManageStyles,
-                          onEditStyle: onEditStyle,
-                          onSavePreset: onSavePreset,
-                        ),
-                      ),
-                  ],
-                ),
+                  // Scrollable content — only in the tree when expanded.
+                  if (isExpanded && expandedContent != null)
+                    Expanded(child: expandedContent!),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

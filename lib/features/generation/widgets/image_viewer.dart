@@ -179,6 +179,12 @@ class _ImagePreviewViewerState extends State<ImagePreviewViewer>
             children: [
               if (widget.generatedImage != null)
                 GestureDetector(
+                  // The whole preview box takes pointers, not just the
+                  // aspect-fitted image: with the default deferToChild the
+                  // letterbox bands around the image had no hit-testable
+                  // child of their own, so a pinch finger landing there
+                  // never reached the viewer's scale recogniser.
+                  behavior: HitTestBehavior.opaque,
                   onDoubleTapDown: (details) => _lastDoubleTapLocal = details.localPosition,
                   onDoubleTap: _handleDoubleTap,
                   child: InteractiveViewer(
