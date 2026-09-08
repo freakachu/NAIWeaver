@@ -1150,6 +1150,9 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get styleSaveAsNew => '新規として保存';
+
+  @override
   String get styleOverwriteTitle => 'スタイルを上書き';
 
   @override

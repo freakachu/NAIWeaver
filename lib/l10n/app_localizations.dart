@@ -2242,6 +2242,12 @@ abstract class AppLocalizations {
   /// **'ARE YOU SURE YOU WANT TO DELETE \'\'{name}\'\'?'**
   String styleDeleteConfirm(String name);
 
+  /// No description provided for @styleSaveAsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE AS NEW'**
+  String get styleSaveAsNew;
+
   /// No description provided for @styleOverwriteTitle.
   ///
   /// In en, this message translates to:

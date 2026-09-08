@@ -1179,6 +1179,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get styleSaveAsNew => 'SAVE AS NEW';
+
+  @override
   String get styleOverwriteTitle => 'OVERWRITE STYLE';
 
   @override

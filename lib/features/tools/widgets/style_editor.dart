@@ -7,6 +7,7 @@ import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/tag_suggestion_overlay.dart';
 import '../../../core/services/styles.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../generation/providers/generation_notifier.dart';
 import '../../characters/providers/character_library_notifier.dart';
 import '../providers/style_notifier.dart';
@@ -146,26 +147,68 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
               ],
             ),
           ),
-          if (notifier.state.isModified) ...[
+          if (notifier.state.selectedStyle != null) ...[
             const SizedBox(width: 12),
-            TextButton.icon(
-              onPressed: () {
-                if (notifier.hasNameConflict()) {
-                  _showOverwriteConfirm(context, notifier, t);
-                } else {
-                  notifier.saveStyle();
-                }
-              },
-              icon: Icon(Icons.save_outlined, size: 14, color: t.textPrimary),
-              label: Text(l.commonSaveChanges, style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(10), letterSpacing: 1)),
-              style: TextButton.styleFrom(
-                backgroundColor: t.borderSubtle,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-            ),
+            _buildSaveButtons(context, notifier, t, l),
           ],
         ],
       ),
+    );
+  }
+
+  /// A never-saved style gets a single SAVE. A saved one gets SAVE CHANGES
+  /// (overwrite in place, keyed by the name it was opened under) and SAVE AS
+  /// NEW (append a copy) — so a rename can no longer leave a duplicate behind.
+  Widget _buildSaveButtons(BuildContext context, StyleNotifier notifier, VisionTokens t, AppLocalizations l) {
+    final state = notifier.state;
+    final saved = notifier.isSelectedStyleSaved;
+
+    Widget button({required IconData icon, required String label, required VoidCallback? onPressed, bool primary = true}) {
+      final color = onPressed == null ? t.textMinimal : (primary ? t.textPrimary : t.textSecondary);
+      return TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 14, color: color),
+        label: Text(label, style: TextStyle(color: color, fontSize: t.fontSize(10), letterSpacing: 1)),
+        style: TextButton.styleFrom(
+          backgroundColor: primary ? t.borderSubtle : Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+      );
+    }
+
+    void saveChanges() {
+      if (notifier.hasNameConflict()) {
+        _showOverwriteConfirm(context, notifier, t);
+      } else {
+        notifier.saveStyle();
+      }
+    }
+
+    if (!saved) {
+      return button(
+        icon: Icons.save_outlined,
+        label: l.commonSave.toUpperCase(),
+        onPressed: state.isModified ? saveChanges : null,
+      );
+    }
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      alignment: WrapAlignment.end,
+      children: [
+        button(
+          icon: Icons.copy_outlined,
+          label: l.styleSaveAsNew,
+          onPressed: notifier.saveAsNew,
+          primary: false,
+        ),
+        button(
+          icon: Icons.save_outlined,
+          label: l.commonSaveChanges,
+          onPressed: state.isModified ? saveChanges : null,
+        ),
+      ],
     );
   }
 
@@ -237,7 +280,9 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
               },
               itemBuilder: (context, index) {
                 final style = state.styles[index];
-                final isSelected = state.selectedStyle?.name == style.name;
+                // Keyed by the name the style was opened under, so the
+                // highlight survives a rename in progress.
+                final isSelected = state.originalName == style.name;
 
                 return InkWell(
                   key: ValueKey(style.name),

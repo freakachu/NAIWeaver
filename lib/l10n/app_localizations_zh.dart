@@ -1147,6 +1147,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get styleSaveAsNew => '另存为新风格';
+
+  @override
   String get styleOverwriteTitle => '覆盖风格';
 
   @override

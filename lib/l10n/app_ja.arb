@@ -370,6 +370,7 @@
   "styleEndSuffix": "末尾（サフィックス）",
   "styleDeleteTitle": "スタイルを削除",
   "styleDeleteConfirm": "「{name}」を削除してもよろしいですか？",
+  "styleSaveAsNew": "新規として保存",
   "styleOverwriteTitle": "スタイルを上書き",
   "styleOverwriteConfirm": "「{name}」という名前のスタイルが既に存在します。上書きしますか？",
 

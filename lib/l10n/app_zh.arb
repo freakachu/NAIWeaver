@@ -402,6 +402,7 @@
   "styleDeleteTitle": "删除风格",
   "styleDeleteConfirm": "确定要删除「{name}」吗？",
   "@styleDeleteConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "styleSaveAsNew": "另存为新风格",
   "styleOverwriteTitle": "覆盖风格",
   "styleOverwriteConfirm": "名为「{name}」的风格已存在。是否覆盖？",
   "@styleOverwriteConfirm": { "placeholders": { "name": { "type": "String" } } },

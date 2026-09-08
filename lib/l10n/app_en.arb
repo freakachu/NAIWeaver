@@ -402,6 +402,7 @@
   "styleDeleteTitle": "DELETE STYLE",
   "styleDeleteConfirm": "ARE YOU SURE YOU WANT TO DELETE ''{name}''?",
   "@styleDeleteConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "styleSaveAsNew": "SAVE AS NEW",
   "styleOverwriteTitle": "OVERWRITE STYLE",
   "styleOverwriteConfirm": "A STYLE WITH THE NAME ''{name}'' ALREADY EXISTS. OVERWRITE?",
   "@styleOverwriteConfirm": { "placeholders": { "name": { "type": "String" } } },

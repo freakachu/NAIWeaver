@@ -149,29 +149,84 @@ class StyleNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether the selected style already exists in the saved list. False for a
+  /// style created by [createNewStyle] that has not been saved yet.
+  bool get isSelectedStyleSaved =>
+      _state.originalName != null &&
+      _state.styles.any((s) => s.name == _state.originalName);
+
+  /// Overwrites the style being edited, keyed by the name it had when it was
+  /// selected ([StyleState.originalName]) — so renaming replaces the entry in
+  /// place instead of appending a duplicate and leaving the old name behind.
+  ///
+  /// If the new name collides with a *different* existing style (the UI asks
+  /// for confirmation first via [hasNameConflict]), that other entry is
+  /// removed so the list never holds two styles with the same name. A style
+  /// that was never saved is appended.
   Future<void> saveStyle() async {
     if (_state.selectedStyle == null) return;
 
-    final index = _state.styles.indexWhere((s) => s.name == nameController.text);
-    List<PromptStyle> updatedStyles;
-    
     final finalStyle = _state.selectedStyle!;
+    final originalName = _state.originalName;
+    final updatedStyles = List<PromptStyle>.from(_state.styles);
 
-    if (index != -1 && _state.styles[index].name == nameController.text) {
-      updatedStyles = List<PromptStyle>.from(_state.styles)..[index] = finalStyle;
+    final index = updatedStyles.indexWhere((s) => s.name == originalName);
+    if (index != -1) {
+      updatedStyles[index] = finalStyle;
+      // Rename onto another existing style: the edited entry keeps its slot,
+      // the colliding one is dropped (the user confirmed the overwrite).
+      updatedStyles.removeWhere(
+          (s) => s.name == finalStyle.name && !identical(s, finalStyle));
     } else {
-      updatedStyles = List<PromptStyle>.from(_state.styles)..add(finalStyle);
+      updatedStyles.add(finalStyle);
     }
 
-    _state = _state.copyWith(styles: updatedStyles, isModified: false);
+    _state = _state.copyWith(
+      styles: updatedStyles,
+      originalName: finalStyle.name,
+      isModified: false,
+    );
     await StyleStorage.saveStyles(_stylesFilePath, updatedStyles);
     onStylesChanged();
     notifyListeners();
   }
 
+  /// Appends a copy of the edited style under the current name and selects
+  /// it. The original entry is left untouched. If the name is already taken
+  /// (including when the user did not change it), it is suffixed
+  /// " (Copy)", " (Copy 2)", … like [duplicateStyle].
+  Future<void> saveAsNew() async {
+    if (_state.selectedStyle == null) return;
+
+    final source = _state.selectedStyle!;
+    final newStyle = source.copyWith(name: uniqueName(source.name));
+    final updatedStyles = List<PromptStyle>.from(_state.styles)..add(newStyle);
+
+    _state = _state.copyWith(styles: updatedStyles);
+    selectStyle(newStyle);
+    await StyleStorage.saveStyles(_stylesFilePath, updatedStyles);
+    onStylesChanged();
+    notifyListeners();
+  }
+
+  /// [base] if no saved style has that name, otherwise the first free
+  /// "base (Copy)", "base (Copy 2)", … — or, with [numbered], "base 2",
+  /// "base 3", … (used for the placeholder name of a brand-new style).
+  String uniqueName(String base, {bool numbered = false}) {
+    final taken = _state.styles.map((s) => s.name).toSet();
+    final trimmed = base.trim();
+    if (!taken.contains(trimmed)) return trimmed;
+    for (var n = 1;; n++) {
+      final candidate = numbered
+          ? '$trimmed ${n + 1}'
+          : (n == 1 ? '$trimmed (Copy)' : '$trimmed (Copy $n)');
+      if (!taken.contains(candidate)) return candidate;
+    }
+  }
+
   Future<void> deleteStyle(PromptStyle style) async {
     final updatedStyles = List<PromptStyle>.from(_state.styles)..removeWhere((s) => s.name == style.name);
-    if (_state.selectedStyle?.name == style.name) {
+    if (_state.originalName == style.name) {
       selectStyle(null);
     }
     _state = _state.copyWith(styles: updatedStyles);
@@ -181,13 +236,7 @@ class StyleNotifier extends ChangeNotifier {
   }
 
   void duplicateStyle(PromptStyle style) {
-    final newStyle = PromptStyle(
-      name: "${style.name} (Copy)",
-      prefix: style.prefix,
-      suffix: style.suffix,
-      negativeContent: style.negativeContent,
-      isDefault: style.isDefault,
-    );
+    final newStyle = style.copyWith(name: uniqueName(style.name));
 
     final updatedStyles = List<PromptStyle>.from(_state.styles)..add(newStyle);
     _state = _state.copyWith(styles: updatedStyles);
@@ -222,7 +271,7 @@ class StyleNotifier extends ChangeNotifier {
 
   void createNewStyle() {
     final newStyle = PromptStyle(
-      name: "NEW STYLE",
+      name: uniqueName("NEW STYLE", numbered: true),
       prefix: "",
       suffix: "",
       negativeContent: "",

@@ -18,6 +18,21 @@ class PromptStyle {
     this.isDefault = false,
   });
 
+  PromptStyle copyWith({
+    String? name,
+    String? prefix,
+    String? suffix,
+    String? negativeContent,
+    bool? isDefault,
+  }) =>
+      PromptStyle(
+        name: name ?? this.name,
+        prefix: prefix ?? this.prefix,
+        suffix: suffix ?? this.suffix,
+        negativeContent: negativeContent ?? this.negativeContent,
+        isDefault: isDefault ?? this.isDefault,
+      );
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'prefix': prefix,
