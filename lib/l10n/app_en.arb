@@ -1012,6 +1012,10 @@
   "enhanceSaved": "ENHANCED IMAGE SAVED TO GALLERY",
 
   "settingsSeedControl": "Show Seed Control",
+  "enhanceMaxChip": "MAX ✨",
+  "enhanceMaxTooltip": "NovelAI Enhance Max: keeps the source size in the request and returns the image scaled to ~3.1 MP",
+  "enhanceEstimatedCost": "~{anlas} ANLAS (EST.)",
+  "@enhanceEstimatedCost": { "placeholders": { "anlas": { "type": "int" } } },
   "settingsSeedControlDesc": "Display seed value and randomize toggle on the generation screen",
   "settingsShowTooltips": "Show Tooltips",
   "settingsShowTooltipsDesc": "Display helpful tooltips when hovering or long-pressing buttons",

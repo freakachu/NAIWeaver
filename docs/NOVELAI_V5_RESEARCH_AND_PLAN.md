@@ -421,7 +421,8 @@ user's tuned steps/scale on model switch.
 ### S7. Later: Enhance "Max", streaming, webp
 
 - Enhance panel: add "Max" when `caps.maxEnhance && w*h < 2,516,582` → `upscaled_enhance: true` at source dims
-  (result ≈ 3.1 MP). Whether it draws battery or Anlas is `[UNVERIFIED]`.
+  (result ≈ 3.1 MP). Whether it draws battery or Anlas is `[UNVERIFIED]`. **Built 2026-09-07** (see the status
+  table); the request shape has not been sent to the live API yet.
 - `/ai/generate-image-stream` (`stream: "sse"`) for a live preview — nice-to-have.
 - `image_format: webp` — skip (metadata/alpha pipeline assumes PNG).
 
@@ -468,7 +469,7 @@ note.com day-one reports (itsuki_ailab, tank_ai, aiillust000).
 | S4 transparency | **done** (viewer + request); img2img source flatten-onto-transparent **not** done | TRANSPARENT BG toggle, `straight_alpha` + tag hint, `pngHasAlpha` + `CheckerboardPainter` in the viewer. Save path already injects metadata without re-encoding, so RGBA survives. |
 | S5 positioning | **done** | `NaiGridSelector(freeform:, aspectRatio:)` — free-drag on V5 (3 dp), grid on V4.5; cap 32/6 with an "only the first N are sent" note (no destructive trimming) |
 | S6 prompt features | **done** | `applyAutoText` (V5 only), V5 tags merged into autocomplete (`TagService.naiV5Tags`), V5 quality/UC styles in `prompt_styles.json`; `k_dpmpp_2m_sde` sampler |
-| S7 Enhance Max / streaming / webp | **deferred** | helper `naiMaxEnhanceAvailable` exists; no UI |
+| S7 Enhance Max / streaming / webp | **Max done** (wire format `[UNVERIFIED]` against the live API); streaming / webp deferred | `EnhanceConfig.maxEnhance`, MAX ✨ chip in `enhance_editor.dart` (shown when `naiMaxEnhanceAvailable`), request at source dims + `upscaled_enhance: true` via `buildNaiGenerateBody(upscaledEnhance:)` (stripped on V4.5); numeric scales computed from the `[2, 1.5, 1]` rule; cost estimated at the OUTPUT pixel count (pricing unknown) |
 | S8 tests + docs | **done** | `test/nai_model_test.dart`, `test/nai_request_builder_test.dart`, `test/nai_v5_persistence_test.dart` (51 tests); README / FEATURES / ARCHITECTURE / API_DOCUMENTATION / CHANGELOG |
 
 Decisions taken where the plan left room:

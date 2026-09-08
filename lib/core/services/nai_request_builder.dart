@@ -53,6 +53,7 @@ Map<String, dynamic> buildNaiGenerateBody({
   String? maskBase64,
   double? img2imgStrength,
   double? img2imgNoise,
+  bool upscaledEnhance = false,
   int? maskBlur,
   List<String>? directorRefImages,
   List<Map<String, dynamic>>? directorRefDescriptions,
@@ -216,6 +217,11 @@ Map<String, dynamic> buildNaiGenerateBody({
       'strength': img2imgStrength,
     if (action == 'img2img' && img2imgNoise != null) 'noise': img2imgNoise,
     if (action == 'img2img') 'extra_noise_seed': seed,
+    // Enhance "Max": img2img at the SOURCE size, the server scales the result
+    // to the 3,145,728 px cap. Only models with the capability (V5) get the
+    // key at all, following the per-caps stripping above.
+    if (action == 'img2img' && caps.maxEnhance && upscaledEnhance)
+      'upscaled_enhance': true,
     if (action != 'generate') 'add_original_image': true,
     if (action == 'infill' && maskBlur != null) 'mask_blur': maskBlur,
     // Director reference (Precise Reference) parameters

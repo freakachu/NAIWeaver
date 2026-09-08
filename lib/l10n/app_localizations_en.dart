@@ -2917,6 +2917,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSeedControlDesc =>
       'Display seed value and randomize toggle on the generation screen';
+  @override
+  String get enhanceMaxChip => 'MAX ✨';
+
+  @override
+  String get enhanceMaxTooltip =>
+      'NovelAI Enhance Max: keeps the source size in the request and returns the image scaled to ~3.1 MP';
+
+  @override
+  String enhanceEstimatedCost(int anlas) {
+    return '~$anlas ANLAS (EST.)';
+  }
+
 
   @override
   String get settingsShowTooltips => 'Show Tooltips';

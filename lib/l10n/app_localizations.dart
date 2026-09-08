@@ -5426,6 +5426,24 @@ abstract class AppLocalizations {
   /// **'Display seed value and randomize toggle on the generation screen'**
   String get settingsSeedControlDesc;
 
+  /// No description provided for @enhanceMaxChip.
+  ///
+  /// In en, this message translates to:
+  /// **'MAX ✨'**
+  String get enhanceMaxChip;
+
+  /// No description provided for @enhanceMaxTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'NovelAI Enhance Max: keeps the source size in the request and returns the image scaled to ~3.1 MP'**
+  String get enhanceMaxTooltip;
+
+  /// No description provided for @enhanceEstimatedCost.
+  ///
+  /// In en, this message translates to:
+  /// **'~{anlas} ANLAS (EST.)'**
+  String enhanceEstimatedCost(int anlas);
+
   /// No description provided for @settingsShowTooltips.
   ///
   /// In en, this message translates to:

@@ -553,6 +553,45 @@ void main() {
     });
   });
 
+  group('Enhance Max (upscaled_enhance)', () {
+    Map<String, dynamic> body(NaiModel model, {bool max = true, String action = 'img2img'}) =>
+        buildNaiGenerateBody(
+          model: model,
+          prompt: 'x',
+          width: 832,
+          height: 1216,
+          seed: 1,
+          action: action,
+          sourceImageBase64: 'AAAA',
+          img2imgStrength: 0.5,
+          img2imgNoise: 0.0,
+          upscaledEnhance: max,
+        );
+
+    test('V5 img2img sends upscaled_enhance: true at the source size', () {
+      final p = _params(body(NaiModel.v5Full));
+      expect(p['upscaled_enhance'], isTrue);
+      expect(p['width'], 832);
+      expect(p['height'], 1216);
+      expect(p['action'], isNull);
+      expect(p['image'], 'AAAA');
+    });
+
+    test('the key is absent when Max is off', () {
+      expect(_params(body(NaiModel.v5Full, max: false)).containsKey('upscaled_enhance'), isFalse);
+    });
+
+    test('V4.5 has no Max capability, so the key is stripped', () {
+      expect(_params(body(NaiModel.v45Full)).containsKey('upscaled_enhance'), isFalse);
+      expect(_params(body(NaiModel.v45Curated)).containsKey('upscaled_enhance'), isFalse);
+    });
+
+    test('only img2img carries it (never txt2img or infill)', () {
+      expect(_params(body(NaiModel.v5Full, action: 'generate')).containsKey('upscaled_enhance'), isFalse);
+      expect(_params(body(NaiModel.v5Full, action: 'infill')).containsKey('upscaled_enhance'), isFalse);
+    });
+  });
+
   test('sanitizePromptForNai strips backslashes', () {
     expect(sanitizePromptForNai(r'a\b\\c'), 'abc');
     expect(sanitizePromptForNai(null), '');

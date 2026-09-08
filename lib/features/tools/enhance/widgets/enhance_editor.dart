@@ -508,23 +508,28 @@ class _EnhanceEditorState extends State<EnhanceEditor> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              for (final scale in [1.0, 1.5])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text('${scale}x', style: TextStyle(fontSize: t.fontSize(9), fontWeight: FontWeight.bold, letterSpacing: 1)),
-                    selected: notifier.config.scale == scale,
-                    onSelected: (_) => notifier.setScale(scale),
-                    backgroundColor: t.borderSubtle,
-                    selectedColor: t.accent,
-                    checkmarkColor: t.background,
-                    labelStyle: TextStyle(color: notifier.config.scale == scale ? t.background : t.textTertiary),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
-                    side: BorderSide(color: notifier.config.scale == scale ? t.accent : t.textMinimal, width: 0.5),
+              // Numeric scales come from NovelAI's rule (2 / 1.5 / 1 within
+              // the pixel cap); Max is offered only where the model and the
+              // source allow it, and deselects the numeric scale.
+              for (final scale in notifier.availableScales.reversed)
+                _scaleChip(
+                  label: '${scale}x',
+                  selected: !notifier.config.maxEnhance && notifier.config.scale == scale,
+                  onSelected: () => notifier.setScale(scale),
+                  t: t,
+                ),
+              if (notifier.maxEnhanceAvailable)
+                Tooltip(
+                  message: l.enhanceMaxTooltip,
+                  child: _scaleChip(
+                    label: l.enhanceMaxChip,
+                    selected: notifier.config.maxEnhance,
+                    onSelected: () => notifier.setMaxEnhance(true),
+                    t: t,
                   ),
                 ),
             ],
@@ -549,15 +554,45 @@ class _EnhanceEditorState extends State<EnhanceEditor> {
           ),
           const SizedBox(height: 16),
 
-          // Resolution display
-          Text(
-            notifier.config.scale > 1.0
-                ? '${notifier.sourceWidth}x${notifier.sourceHeight} → ${((notifier.sourceWidth * notifier.config.scale) / 64).round() * 64}x${((notifier.sourceHeight * notifier.config.scale) / 64).round() * 64}'
-                : '${notifier.sourceWidth}x${notifier.sourceHeight}',
-            style: TextStyle(color: t.textMinimal, fontSize: t.fontSize(labelSize)),
-          ),
+          // Resolution display (+ Anlas estimate, priced at the output size)
+          Builder(builder: (context) {
+            final (outW, outH) = notifier.predictedOutputSize;
+            final grows = outW != notifier.sourceWidth || outH != notifier.sourceHeight;
+            final approx = notifier.config.maxEnhance ? '≈ ' : '';
+            final dims = grows
+                ? '${notifier.sourceWidth}x${notifier.sourceHeight} → $approx${outW}x$outH'
+                : '${notifier.sourceWidth}x${notifier.sourceHeight}';
+            final sub = context.watch<GenerationNotifier>().state.subscription;
+            final cost = sub == null ? null : notifier.estimateCost(isOpus: sub.isOpus);
+            final costText = cost == null || cost.isZeroCost ? '' : '   ${l.enhanceEstimatedCost(cost.totalAnlas)}';
+            return Text(
+              '$dims$costText',
+              style: TextStyle(color: t.textMinimal, fontSize: t.fontSize(labelSize)),
+            );
+          }),
         ],
       ),
+    );
+  }
+
+  Widget _scaleChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onSelected,
+    required dynamic t,
+  }) {
+    return FilterChip(
+      label: Text(label, style: TextStyle(fontSize: t.fontSize(9), fontWeight: FontWeight.bold, letterSpacing: 1)),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      backgroundColor: t.borderSubtle,
+      selectedColor: t.accent,
+      checkmarkColor: t.background,
+      labelStyle: TextStyle(color: selected ? t.background : t.textTertiary),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+      side: BorderSide(color: selected ? t.accent : t.textMinimal, width: 0.5),
     );
   }
 

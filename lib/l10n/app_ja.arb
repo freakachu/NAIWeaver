@@ -936,6 +936,10 @@
   "enhanceSaved": "エンハンス画像をギャラリーに保存しました",
 
   "settingsSeedControl": "シード表示",
+  "enhanceMaxChip": "最大 ✨",
+  "enhanceMaxTooltip": "NovelAI Enhance Max：元のサイズで送信し、約 3.1 MP に拡大された画像を返します",
+  "enhanceEstimatedCost": "約 {anlas} Anlas（推定）",
+  "@enhanceEstimatedCost": { "placeholders": { "anlas": { "type": "int" } } },
   "settingsSeedControlDesc": "生成画面にシード値とランダム切り替えを表示",
   "settingsShowTooltips": "ツールチップ表示",
   "settingsShowTooltipsDesc": "ボタンにカーソルを合わせたり長押しした時にツールチップを表示",

@@ -2861,6 +2861,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSeedControlDesc => '在生成界面显示种子值和随机切换';
 
   @override
+  String get enhanceMaxChip => '最大 ✨';
+
+  @override
+  String get enhanceMaxTooltip =>
+      'NovelAI Enhance Max：请求保持原始尺寸，返回放大到约 3.1 MP 的图像';
+
+  @override
+  String enhanceEstimatedCost(int anlas) {
+    return '约 $anlas Anlas（估算）';
+  }
+
+  @override
   String get settingsShowTooltips => '显示提示';
 
   @override

@@ -2869,6 +2869,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsSeedControlDesc => '生成画面にシード値とランダム切り替えを表示';
 
   @override
+  String get enhanceMaxChip => '最大 ✨';
+
+  @override
+  String get enhanceMaxTooltip =>
+      'NovelAI Enhance Max：元のサイズで送信し、約 3.1 MP に拡大された画像を返します';
+
+  @override
+  String enhanceEstimatedCost(int anlas) {
+    return '約 $anlas Anlas（推定）';
+  }
+
+  @override
   String get settingsShowTooltips => 'ツールチップ表示';
 
   @override

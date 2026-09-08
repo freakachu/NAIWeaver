@@ -1006,6 +1006,10 @@
   "enhanceSaved": "增强图像已保存到图库",
 
   "settingsSeedControl": "显示种子控制",
+  "enhanceMaxChip": "最大 ✨",
+  "enhanceMaxTooltip": "NovelAI Enhance Max：请求保持原始尺寸，返回放大到约 3.1 MP 的图像",
+  "enhanceEstimatedCost": "约 {anlas} Anlas（估算）",
+  "@enhanceEstimatedCost": { "placeholders": { "anlas": { "type": "int" } } },
   "settingsSeedControlDesc": "在生成界面显示种子值和随机切换",
   "settingsShowTooltips": "显示提示",
   "settingsShowTooltipsDesc": "悬停或长按按钮时显示帮助提示",

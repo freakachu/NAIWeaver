@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import '../../../../core/models/nai_model.dart';
+import '../../../../core/services/nai_cost_estimator.dart';
 import '../../../../core/services/novel_ai_service.dart';
 import '../../../generation/models/nai_character.dart';
 import '../models/enhance_config.dart';
@@ -56,10 +58,82 @@ class EnhanceNotifier extends ChangeNotifier {
     _service = service;
   }
 
+  NaiModel get model => _model;
+
   /// Enhance renders with the same model as the main editor (it used to be
-  /// hard-wired to V4.5 Full regardless of the CURATED toggle).
+  /// hard-wired to V4.5 Full regardless of the CURATED toggle). A Max
+  /// selection is dropped when the new model cannot do it (V4.5).
   void updateModel(NaiModel model) {
     _model = model;
+    if (_config.maxEnhance && !maxEnhanceAvailable) {
+      _config = _config.copyWith(maxEnhance: false);
+      notifyListeners();
+    }
+  }
+
+  /// Steps / guidance Enhance sends (the service defaults); used for the
+  /// cost estimate so it matches the request.
+  static const int enhanceSteps = 28;
+
+  /// Whether NovelAI offers Enhance "Max" for the current model and source
+  /// (`caps.maxEnhance` and the source is below 0.8 × the pixel cap).
+  bool get maxEnhanceAvailable =>
+      hasSource && naiMaxEnhanceAvailable(_model, _sourceWidth, _sourceHeight);
+
+  /// The numeric scale chips NovelAI's frontend offers: `[2, 1.5, 1]`, kept
+  /// only where the rounded-to-64 output stays within the 3,145,728 px cap.
+  /// 832×1216 → `[1.5, 1]`; 512×768 → `[2, 1.5, 1]`.
+  List<double> get availableScales {
+    if (!hasSource) return const [1.0];
+    return [2.0, 1.5, 1.0].where((scale) {
+      final (w, h) = _scaledSize(scale);
+      return w * h <= naiMaxPixels;
+    }).toList();
+  }
+
+  /// Source dimensions × [scale], each rounded to the nearest multiple of 64
+  /// (what the app has always sent for Enhance).
+  (int, int) _scaledSize(double scale) => (
+        ((_sourceWidth * scale) / 64).round() * 64,
+        ((_sourceHeight * scale) / 64).round() * 64,
+      );
+
+  /// What Max is expected to return: the source aspect scaled to the pixel
+  /// cap, floored to multiples of 64 so the prediction never exceeds it. The
+  /// server decides the real size; this is a preview.
+  (int, int) get predictedMaxSize {
+    if (_sourceWidth <= 0 || _sourceHeight <= 0) return (0, 0);
+    final k = math.sqrt(naiMaxPixels / (_sourceWidth * _sourceHeight));
+    return (
+      math.max(64, ((_sourceWidth * k) / 64).floor() * 64),
+      math.max(64, ((_sourceHeight * k) / 64).floor() * 64),
+    );
+  }
+
+  /// Dimensions of the image Enhance will produce with the current config.
+  (int, int) get predictedOutputSize =>
+      _config.maxEnhance ? predictedMaxSize : _scaledSize(_config.scale);
+
+  /// Dimensions sent in the request. Max keeps the SOURCE size (the server
+  /// scales); numeric scales send the scaled size.
+  (int, int) get requestSize =>
+      _config.maxEnhance ? (_sourceWidth, _sourceHeight) : _scaledSize(_config.scale);
+
+  /// Anlas estimate for the next Enhance, priced at the OUTPUT pixel count.
+  /// NovelAI has not published what Max costs, so a ~3.1 MP output is priced
+  /// as an ordinary img2img of that size — an upper-bound guess.
+  NaiImageCostEstimate estimateCost({required bool isOpus}) {
+    final (w, h) = predictedOutputSize;
+    return estimateNaiImageCost(
+      width: w,
+      height: h,
+      steps: enhanceSteps,
+      smea: false,
+      smeaDyn: false,
+      isOpus: isOpus,
+      hasImageInput: true,
+      strengthFactor: _config.strength,
+    );
   }
 
   /// Wires a live view of the main editor's session render settings
@@ -78,6 +152,14 @@ class EnhanceNotifier extends ChangeNotifier {
     _sourceHeight = decoded.$2;
     _resultBytes = null;
     _error = null;
+    // A source that is already near the cap has no Max, and a numeric scale
+    // that would overflow the cap is not offered either.
+    if (_config.maxEnhance && !maxEnhanceAvailable) {
+      _config = _config.copyWith(maxEnhance: false);
+    }
+    if (!availableScales.contains(_config.scale)) {
+      _config = _config.copyWith(scale: 1.0);
+    }
     notifyListeners();
   }
 
@@ -99,8 +181,17 @@ class EnhanceNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Picks a numeric scale; this deselects Max.
   void setScale(double value) {
-    _config = _config.copyWith(scale: value);
+    _config = _config.copyWith(scale: value, maxEnhance: false);
+    notifyListeners();
+  }
+
+  /// Selects / clears Enhance "Max". Ignored when the model or source cannot
+  /// do it (see [maxEnhanceAvailable]).
+  void setMaxEnhance(bool value) {
+    if (value && !maxEnhanceAvailable) return;
+    _config = _config.copyWith(maxEnhance: value);
     notifyListeners();
   }
 
@@ -140,10 +231,10 @@ class EnhanceNotifier extends ChangeNotifier {
         height: _sourceHeight,
       ));
 
-      // Step 2: Generate enhanced image via img2img
-      // Apply resolution scale and round to nearest multiple of 64
-      final outWidth = ((_sourceWidth * _config.scale) / 64).round() * 64;
-      final outHeight = ((_sourceHeight * _config.scale) / 64).round() * 64;
+      // Step 2: Generate enhanced image via img2img. A numeric scale sends
+      // the scaled size (rounded to 64); Max sends the SOURCE size plus
+      // `upscaled_enhance: true` and lets the server scale to the cap.
+      final (outWidth, outHeight) = requestSize;
 
       final effectiveNegative = _styleNegativeContent != null && _styleNegativeContent!.isNotEmpty
           ? '$_negativePrompt, $_styleNegativeContent'
@@ -165,6 +256,7 @@ class EnhanceNotifier extends ChangeNotifier {
         sourceImageBase64: sourceBase64,
         img2imgStrength: _config.strength,
         img2imgNoise: _config.noise,
+        upscaledEnhance: _config.maxEnhance,
         promptPrefix: _promptPrefix,
         promptSuffix: _promptSuffix,
         characters: _characters,
