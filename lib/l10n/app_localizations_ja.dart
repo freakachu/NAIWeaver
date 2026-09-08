@@ -1161,6 +1161,14 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  @override
+  String get styleWorksWith => '対応モデル';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '$count 件のスタイルを非表示（$model 向け）';
+  }
+
   String get refPreciseReferences => 'プリサイスリファレンス';
 
   @override

@@ -406,6 +406,9 @@
   "styleOverwriteTitle": "覆盖风格",
   "styleOverwriteConfirm": "名为「{name}」的风格已存在。是否覆盖？",
   "@styleOverwriteConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "styleWorksWith": "适用模型",
+  "panelStylesHidden": "已隐藏 {count} 个风格（为 {model} 制作）",
+  "@panelStylesHidden": { "placeholders": { "count": { "type": "int" }, "model": { "type": "String" } } },
 
   "refPreciseReferences": "精准参考",
   "refVibeTransfer": "氛围迁移",

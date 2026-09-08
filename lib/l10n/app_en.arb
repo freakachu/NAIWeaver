@@ -406,6 +406,9 @@
   "styleOverwriteTitle": "OVERWRITE STYLE",
   "styleOverwriteConfirm": "A STYLE WITH THE NAME ''{name}'' ALREADY EXISTS. OVERWRITE?",
   "@styleOverwriteConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "styleWorksWith": "WORKS WITH",
+  "panelStylesHidden": "{count} styles hidden (made for {model})",
+  "@panelStylesHidden": { "placeholders": { "count": { "type": "int" }, "model": { "type": "String" } } },
 
   "refPreciseReferences": "PRECISE REFERENCES",
   "refVibeTransfer": "VIBE TRANSFER",

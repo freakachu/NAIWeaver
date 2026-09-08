@@ -6,6 +6,7 @@ import '../../../core/theme/vision_tokens.dart';
 import '../../../core/widgets/confirm_dialog.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/tag_suggestion_overlay.dart';
+import '../../../core/models/nai_model.dart';
 import '../../../core/services/styles.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../generation/providers/generation_notifier.dart';
@@ -319,6 +320,7 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
                             ),
                           ),
                         ),
+                        _buildModelBadge(style, t),
                         PopupMenuButton<String>(
                           icon: Icon(Icons.more_vert, size: 14, color: t.textDisabled),
                           padding: EdgeInsets.zero,
@@ -431,6 +433,9 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
                   ],
                 ),
                 const SizedBox(height: 24),
+                _buildSectionTitle(context.l.styleWorksWith, t),
+                _buildModelSelector(notifier, t),
+                const SizedBox(height: 24),
                 _buildSectionTitle(context.l.styleTargetPrompt, t),
                 _buildTargetSelector(notifier, t),
                 const SizedBox(height: 24),
@@ -503,6 +508,45 @@ class _StyleEditorContentState extends State<_StyleEditorContent> {
           ),
         ),
       ],
+    );
+  }
+
+  /// V4.5 / V5 multi-select. At least one stays on (the notifier refuses to
+  /// clear the last one); a new style defaults to both.
+  Widget _buildModelSelector(StyleNotifier notifier, VisionTokens t) {
+    final selected = notifier.state.selectedStyle?.models ?? PromptStyle.allModels;
+    return Row(
+      children: [
+        for (final family in NaiModelFamily.values) ...[
+          _buildTargetOption(
+            label: family.label,
+            isActive: selected.contains(family),
+            onTap: () => notifier.toggleModelFamily(family),
+            t: t,
+          ),
+          if (family != NaiModelFamily.values.last) const SizedBox(width: 12),
+        ],
+      ],
+    );
+  }
+
+  /// Compact "V4.5 · V5" marker for a list row.
+  Widget _buildModelBadge(PromptStyle style, VisionTokens t) {
+    final label = NaiModelFamily.values
+        .where(style.models.contains)
+        .map((f) => f.label)
+        .join(' · ');
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        border: Border.all(color: t.textMinimal, width: 0.5),
+        borderRadius: BorderRadius.circular(2),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(7), letterSpacing: 0.5),
+      ),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/wildcard_service.dart';
 import '../../../core/utils/tag_suggestion_helper.dart';
+import '../../../core/models/nai_model.dart';
 import '../../../core/services/styles.dart';
 import '../../../core/services/tag_service.dart';
 
@@ -117,28 +118,32 @@ class StyleNotifier extends ChangeNotifier {
     String? content,
     bool? isPrefix,
     bool? isDefault,
+    Set<NaiModelFamily>? models,
   }) {
     if (_state.selectedStyle == null) return;
 
     final finalContent = content ?? contentController.text;
-    
+    final current = _state.selectedStyle!;
+
     PromptStyle updated;
     if (_state.isEditingNegative) {
       updated = PromptStyle(
         name: name ?? nameController.text,
-        prefix: _state.selectedStyle!.prefix,
-        suffix: _state.selectedStyle!.suffix,
+        prefix: current.prefix,
+        suffix: current.suffix,
         negativeContent: finalContent,
-        isDefault: isDefault ?? _state.selectedStyle!.isDefault,
+        isDefault: isDefault ?? current.isDefault,
+        models: models ?? current.models,
       );
     } else {
-      final currentIsPrefix = isPrefix ?? (_state.selectedStyle!.prefix.isNotEmpty || _state.selectedStyle!.suffix.isEmpty);
+      final currentIsPrefix = isPrefix ?? (current.prefix.isNotEmpty || current.suffix.isEmpty);
       updated = PromptStyle(
         name: name ?? nameController.text,
         prefix: currentIsPrefix ? finalContent : "",
         suffix: currentIsPrefix ? "" : finalContent,
-        negativeContent: _state.selectedStyle!.negativeContent,
-        isDefault: isDefault ?? _state.selectedStyle!.isDefault,
+        negativeContent: current.negativeContent,
+        isDefault: isDefault ?? current.isDefault,
+        models: models ?? current.models,
       );
     }
 
@@ -163,6 +168,21 @@ class StyleNotifier extends ChangeNotifier {
   /// for confirmation first via [hasNameConflict]), that other entry is
   /// removed so the list never holds two styles with the same name. A style
   /// that was never saved is appended.
+  /// Toggles a target family on the edited style. At least one family must
+  /// stay selected, so the last one cannot be switched off.
+  void toggleModelFamily(NaiModelFamily family) {
+    final current = _state.selectedStyle;
+    if (current == null) return;
+    final next = Set<NaiModelFamily>.from(current.models);
+    if (next.contains(family)) {
+      if (next.length == 1) return;
+      next.remove(family);
+    } else {
+      next.add(family);
+    }
+    updateCurrentStyle(models: next);
+  }
+
   Future<void> saveStyle() async {
     if (_state.selectedStyle == null) return;
 

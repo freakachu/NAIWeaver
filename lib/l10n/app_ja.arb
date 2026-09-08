@@ -374,6 +374,9 @@
   "styleOverwriteTitle": "スタイルを上書き",
   "styleOverwriteConfirm": "「{name}」という名前のスタイルが既に存在します。上書きしますか？",
 
+  "styleWorksWith": "対応モデル",
+  "panelStylesHidden": "{count} 件のスタイルを非表示（{model} 向け）",
+  "@panelStylesHidden": { "placeholders": { "count": { "type": "int" }, "model": { "type": "String" } } },
   "refPreciseReferences": "プリサイスリファレンス",
   "refVibeTransfer": "バイブトランスファー",
   "refDialogCancel": "キャンセル",

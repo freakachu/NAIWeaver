@@ -549,8 +549,9 @@ class _SimpleGeneratorAppState extends State<SimpleGeneratorApp> with SingleTick
     final styles = notifier.state.styles;
     if (styles.isEmpty) return;
 
-    // Only cycle through non-default styles (preserve quality tags)
-    final cyclableStyles = styles.where((s) => !s.isDefault).toList();
+    // Only cycle through non-default styles (preserve quality tags) that are
+    // made for the active model — the same subset the styles panel shows.
+    final cyclableStyles = notifier.stylesForCurrentModel.where((s) => !s.isDefault).toList();
     if (cyclableStyles.isEmpty) return;
 
     final active = notifier.state.activeStyleNames;

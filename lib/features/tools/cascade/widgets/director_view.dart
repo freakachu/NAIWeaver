@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/l10n/l10n_extensions.dart';
+import '../../../../core/models/nai_model.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/app_snackbar.dart';
 import '../../../../core/utils/responsive.dart';
@@ -710,13 +711,20 @@ class _DirectorViewState extends State<DirectorView> {
   Widget _buildStyleSelector(CascadeBeat beat, CascadeNotifier notifier) {
     final t = context.t;
     final l = context.l;
-    final styles = context.read<GenerationNotifier>().state.styles;
+    final gen = context.read<GenerationNotifier>();
+    // Beats render with the main editor's model, so offer the same subset.
+    final styles = gen.stylesForCurrentModel;
+    final hiddenCount = gen.hiddenStyleCountForCurrentModel;
+    final otherFamily = gen.state.model.isV5 ? NaiModelFamily.v45 : NaiModelFamily.v5;
 
     if (styles.isEmpty) {
       return Text(l.cascadeNoStyles, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(9)));
     }
 
-    return Wrap(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
       spacing: 8,
       runSpacing: 8,
       children: styles.map((style) {
@@ -747,6 +755,16 @@ class _DirectorViewState extends State<DirectorView> {
           },
         );
       }).toList(),
+        ),
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              l.panelStylesHidden(hiddenCount, otherFamily.label),
+              style: TextStyle(color: t.textMinimal, fontSize: t.fontSize(8)),
+            ),
+          ),
+      ],
     );
   }
 

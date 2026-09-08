@@ -186,6 +186,33 @@ class NaiUcPreset {
   const NaiUcPreset(this.id, this.label, this.text);
 }
 
+/// Model *family*: what styles, defaults and per-model memory key on.
+/// Full and Curated of one generation share prompt conventions, so anything
+/// "made for V5" applies to both V5 wire ids.
+enum NaiModelFamily {
+  v45(id: 'v45', label: 'V4.5'),
+  v5(id: 'v5', label: 'V5');
+
+  const NaiModelFamily({required this.id, required this.label});
+
+  /// Stable id used in JSON (`prompt_styles.json`, packs, prefs).
+  final String id;
+
+  /// Short human label ("V4.5").
+  final String label;
+
+  /// Tolerant parser: the id, the label, or a model wire id / enum name.
+  static NaiModelFamily? tryParse(String? raw) {
+    if (raw == null) return null;
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return null;
+    for (final f in values) {
+      if (f.id == s || f.label.toLowerCase() == s || f.name == s) return f;
+    }
+    return NaiModel.tryParse(s)?.family;
+  }
+}
+
 /// The image models this app can drive.
 enum NaiModel {
   v5Full(
@@ -252,6 +279,9 @@ enum NaiModel {
   /// Deliberately V4.5 Full — existing users are **not** auto-migrated to V5
   /// (it is metered on Opus); they opt in via the picker.
   static const NaiModel fallback = NaiModel.v45Full;
+
+  /// V4.5 or V5, regardless of Full / Curated.
+  NaiModelFamily get family => isV5 ? NaiModelFamily.v5 : NaiModelFamily.v45;
 
   NaiCaps get caps => isV5 ? NaiCaps.v5 : NaiCaps.v45;
   NaiModelDefaults get defaults => isV5 ? NaiModelDefaults.v5 : NaiModelDefaults.v45;

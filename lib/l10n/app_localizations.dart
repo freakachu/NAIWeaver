@@ -2266,6 +2266,18 @@ abstract class AppLocalizations {
   /// **'PRECISE REFERENCES'**
   String get refPreciseReferences;
 
+  /// No description provided for @styleWorksWith.
+  ///
+  /// In en, this message translates to:
+  /// **'WORKS WITH'**
+  String get styleWorksWith;
+
+  /// No description provided for @panelStylesHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} styles hidden (made for {model})'**
+  String panelStylesHidden(int count, String model);
+
   /// No description provided for @refVibeTransfer.
   ///
   /// In en, this message translates to:

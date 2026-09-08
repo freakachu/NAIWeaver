@@ -1071,6 +1071,11 @@ class _ExpandedSettingsContentState extends State<ExpandedSettingsContent> {
   Widget _buildStyles(GenerationNotifier notifier, GenerationState state, VisionTokens t) {
     final mobile = isMobile(context);
     final labelStyle = TextStyle(fontWeight: FontWeight.w900, fontSize: t.fontSize(mobile ? 12 : 9), letterSpacing: 2, color: t.secondaryText);
+    // Only styles made for the active model's family are offered; the rest
+    // are counted in a hint so nothing looks lost on a model switch.
+    final visibleStyles = notifier.stylesForCurrentModel;
+    final hiddenCount = notifier.hiddenStyleCountForCurrentModel;
+    final otherFamily = state.model.isV5 ? NaiModelFamily.v45 : NaiModelFamily.v5;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,13 +1110,13 @@ class _ExpandedSettingsContentState extends State<ExpandedSettingsContent> {
           ],
         ),
         const SizedBox(height: 12),
-        if (state.styles.isEmpty)
+        if (visibleStyles.isEmpty)
           Text(context.l.panelNoStylesDefined.toUpperCase(), style: TextStyle(fontSize: t.fontSize(8), color: t.textMinimal, letterSpacing: 1))
         else if (_stylesExpanded)
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: state.styles.map((style) {
+            children: visibleStyles.map((style) {
               final isSelected = state.activeStyleNames.contains(style.name);
               return _buildStyleChip(style, isSelected, notifier, t);
             }).toList(),
@@ -1121,15 +1126,23 @@ class _ExpandedSettingsContentState extends State<ExpandedSettingsContent> {
             height: 32,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: state.styles.length,
+              itemCount: visibleStyles.length,
               itemBuilder: (context, index) {
-                final style = state.styles[index];
+                final style = visibleStyles[index];
                 final isSelected = state.activeStyleNames.contains(style.name);
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: _buildStyleChip(style, isSelected, notifier, t),
                 );
               },
+            ),
+          ),
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              context.l.panelStylesHidden(hiddenCount, otherFamily.label).toUpperCase(),
+              style: TextStyle(fontSize: t.fontSize(8), color: t.textMinimal, letterSpacing: 1),
             ),
           ),
       ],

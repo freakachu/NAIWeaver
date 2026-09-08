@@ -1158,6 +1158,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  @override
+  String get styleWorksWith => '适用模型';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '已隐藏 $count 个风格（为 $model 制作）';
+  }
+
   String get refPreciseReferences => '精准参考';
 
   @override

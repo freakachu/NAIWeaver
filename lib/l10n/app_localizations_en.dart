@@ -1190,6 +1190,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  @override
+  String get styleWorksWith => 'WORKS WITH';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '$count styles hidden (made for $model)';
+  }
+
   String get refPreciseReferences => 'PRECISE REFERENCES';
 
   @override

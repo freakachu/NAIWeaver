@@ -422,6 +422,13 @@ class GenerationNotifier extends ChangeNotifier {
           ? defaultStyleNames
           : (styles.isNotEmpty ? [styles.first.name] : <String>[]);
     }
+    // The bundled default is a V4.5 style; a V5 user gets that family's
+    // default instead (or nothing) rather than a style made for the other one.
+    initialActiveStyles = reconcileActiveStylesForModel(
+      activeStyleNames: initialActiveStyles,
+      styles: styles,
+      model: _prefs.naiModel,
+    );
 
     final apiKey = await _prefs.getApiKey();
     _service = NovelAIService(apiKey);
@@ -481,6 +488,15 @@ class GenerationNotifier extends ChangeNotifier {
         hasBaseImage: false,
         subscription: _state.subscription,
       );
+
+  /// Styles the user may pick for the active model (see [stylesForModel]).
+  List<PromptStyle> get stylesForCurrentModel =>
+      stylesForModel(_state.styles, _state.model);
+
+  /// Styles [stylesForCurrentModel] leaves out because they target the other
+  /// family only.
+  int get hiddenStyleCountForCurrentModel =>
+      hiddenStyleCount(_state.styles, _state.model);
 
   /// Pushes the active model to the helpers that issue their own requests.
   void _propagateModel() {
@@ -627,6 +643,15 @@ class GenerationNotifier extends ChangeNotifier {
   }) {
     if (furryMode != null) _prefs.setFurryMode(furryMode);
     if (model != null) _prefs.setNaiModel(model);
+    // A style made only for the previous family is swapped for the new
+    // family's default (or dropped); styles that target both are untouched.
+    if (model != null && model.family != _state.model.family) {
+      activeStyleNames = reconcileActiveStylesForModel(
+        activeStyleNames: activeStyleNames ?? _state.activeStyleNames,
+        styles: _state.styles,
+        model: model,
+      );
+    }
     _state = _state.copyWith(
       width: width,
       height: height,
@@ -1544,7 +1569,15 @@ class GenerationNotifier extends ChangeNotifier {
     // Parsed once — see applyImportedMetadata: the persist guard must act on
     // the parsed model, not the raw string.
     final pinnedModel = NaiModel.tryParse(preset.model);
+    final reconciledStyles = pinnedModel == null || pinnedModel.family == _state.model.family
+        ? null
+        : reconcileActiveStylesForModel(
+            activeStyleNames: _state.activeStyleNames,
+            styles: _state.styles,
+            model: pinnedModel,
+          );
     _state = _state.copyWith(
+      activeStyleNames: reconciledStyles,
       width: preset.width,
       height: preset.height,
       scale: preset.scale,
