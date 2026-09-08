@@ -3472,4 +3472,181 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get textGenReasoning => '推理';
+
+  @override
+  String get tagSourcesOpen => '标签列表';
+
+  @override
+  String get tagSourcesTitle => '标签列表';
+
+  @override
+  String get tagSourcesDesc =>
+      '导入 Danbooru / e621 风格的 .csv 或 .json 标签列表。每个列表单独保存，可随时关闭，并按显示顺序（拖动排序）合并进自动补全。名称冲突时内置列表优先。';
+
+  @override
+  String get tagSourcesImport => '导入列表';
+
+  @override
+  String get tagSourcesEmpty => '还没有导入的标签列表。';
+
+  @override
+  String get tagSourcesBundled => '内置 Danbooru 列表（始终启用）';
+
+  @override
+  String tagSourcesTagCount(int count) {
+    return '$count 个标签';
+  }
+
+  @override
+  String get tagSourcesUpdate => '从文件更新';
+
+  @override
+  String get tagSourcesRename => '重命名';
+
+  @override
+  String get tagSourcesRenameTitle => '重命名列表';
+
+  @override
+  String get tagSourcesExport => '导出';
+
+  @override
+  String tagSourcesExported(String name) {
+    return '已导出 $name';
+  }
+
+  @override
+  String get tagSourcesDelete => '删除';
+
+  @override
+  String tagSourcesDeleteConfirm(String name, int count) {
+    return '从自动补全中移除“$name”（$count 个标签）？你为其中标签设置的收藏会保留，以便日后重新导入。';
+  }
+
+  @override
+  String get tagImportTitle => '导入标签列表';
+
+  @override
+  String get tagImportName => '列表名称';
+
+  @override
+  String tagImportRows(int count) {
+    return '$count 行';
+  }
+
+  @override
+  String get tagImportFormatCsv => 'CSV';
+
+  @override
+  String get tagImportFormatCsvHeader => '带表头的 CSV';
+
+  @override
+  String get tagImportFormatJsonObjects => 'JSON 对象';
+
+  @override
+  String get tagImportFormatJsonStrings => 'JSON 名称列表';
+
+  @override
+  String get tagImportFormatJsonMap => 'JSON 名称 → 数量映射';
+
+  @override
+  String get tagImportFormatText => '纯文本，每行一个标签';
+
+  @override
+  String get tagImportFormatUnknown => '无法识别的文件';
+
+  @override
+  String get tagImportColumns => '列';
+
+  @override
+  String get tagImportColName => '标签名';
+
+  @override
+  String get tagImportColCategory => '分类';
+
+  @override
+  String get tagImportColCount => '数量';
+
+  @override
+  String get tagImportColAliases => '别名';
+
+  @override
+  String get tagImportColNone => '— 无 —';
+
+  @override
+  String get tagImportProfile => '分类编号规则';
+
+  @override
+  String get tagImportProfileDanbooru =>
+      'Danbooru（0 一般 · 1 画师 · 3 版权 · 4 角色 · 5 元数据）';
+
+  @override
+  String get tagImportProfileE621 => 'e621（5 物种 · 7 元数据 · 8 设定）';
+
+  @override
+  String get tagImportProfileE621Merged => 'Danbooru + e621 合并列表（e621 段为 7–15）';
+
+  @override
+  String get tagImportProfileCustom => '自定义映射';
+
+  @override
+  String get tagImportCustomMapHint => '为文件中出现的每个分类值指定对应关系：';
+
+  @override
+  String get tagImportSkipValue => '跳过这些行';
+
+  @override
+  String get tagImportMinCount => '最低帖子数';
+
+  @override
+  String tagImportWillImport(int selected, int total) {
+    return '$total 个中有 $selected 个标签达到阈值';
+  }
+
+  @override
+  String get tagImportCategories => '包含的分类';
+
+  @override
+  String get tagImportSpaces => '下划线 → 空格（NovelAI 风格）';
+
+  @override
+  String get tagImportAliases => '导入别名';
+
+  @override
+  String get tagImportPreview => '预览';
+
+  @override
+  String tagImportReplaceExisting(String name) {
+    return '已存在名为“$name”的列表，将被替换。';
+  }
+
+  @override
+  String get tagImportButton => '导入';
+
+  @override
+  String tagImportDone(int imported, String name) {
+    return '已将 $imported 个标签导入“$name”';
+  }
+
+  @override
+  String tagImportSkippedSummary(
+    int below,
+    int category,
+    int invalid,
+    int duplicate,
+  ) {
+    return '已跳过：数量不足 $below、按分类排除 $category、无效 $invalid、重复 $duplicate';
+  }
+
+  @override
+  String tagImportFailed(String error) {
+    return '无法读取标签列表：$error';
+  }
+
+  @override
+  String get tagImportEmpty => '此文件中未找到标签。';
+
+  @override
+  String packTagSourcesSection(int selected, int total) {
+    return '标签列表 ($selected/$total)';
+  }
 }

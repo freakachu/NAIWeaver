@@ -9,6 +9,7 @@ import '../utils/image_utils.dart';
 import 'presets.dart';
 import 'reference_library_service.dart';
 import 'styles.dart';
+import 'tag_source_service.dart';
 
 class PackManifest {
   final String name;
@@ -22,6 +23,7 @@ class PackManifest {
   final int characterPresetCount;
   final int userThemeCount;
   final int galleryAlbumCount;
+  final int tagSourceCount;
   final bool hasSettings;
 
   PackManifest({
@@ -36,6 +38,7 @@ class PackManifest {
     this.characterPresetCount = 0,
     this.userThemeCount = 0,
     this.galleryAlbumCount = 0,
+    this.tagSourceCount = 0,
     this.hasSettings = false,
   });
 
@@ -51,6 +54,7 @@ class PackManifest {
         'characterPresetCount': characterPresetCount,
         'userThemeCount': userThemeCount,
         'galleryAlbumCount': galleryAlbumCount,
+        'tagSourceCount': tagSourceCount,
         'hasSettings': hasSettings,
       };
 
@@ -66,6 +70,7 @@ class PackManifest {
         characterPresetCount: json['characterPresetCount'] as int? ?? 0,
         userThemeCount: json['userThemeCount'] as int? ?? 0,
         galleryAlbumCount: json['galleryAlbumCount'] as int? ?? 0,
+        tagSourceCount: json['tagSourceCount'] as int? ?? 0,
         hasSettings: json['hasSettings'] as bool? ?? false,
       );
 }
@@ -80,6 +85,7 @@ class PackContents {
   final List<CharacterPreset> characterPresets;
   final List<AppThemeConfig> userThemes;
   final List<GalleryAlbum> galleryAlbums;
+  final List<TagSourceBundle> tagSources; // imported tag lists
   final Map<String, Object> settings; // allowlisted SharedPreferences blob
 
   PackContents({
@@ -92,6 +98,7 @@ class PackContents {
     this.characterPresets = const [],
     this.userThemes = const [],
     this.galleryAlbums = const [],
+    this.tagSources = const [],
     this.settings = const {},
   });
 }
@@ -109,6 +116,7 @@ class PackService {
     List<CharacterPreset> characterPresets = const [],
     List<AppThemeConfig> userThemes = const [],
     List<GalleryAlbum> galleryAlbums = const [],
+    List<TagSourceBundle> tagSources = const [],
     Map<String, Object> settings = const {},
   }) {
     final archive = Archive();
@@ -190,6 +198,13 @@ class PackService {
       archive.addFile(ArchiveFile('gallery_albums/${_sanitize(galleryAlbums[i].name)}_$i.json', content.length, content));
     }
 
+    // Add imported tag lists (one self-describing bundle per source; compact —
+    // a big list is tens of thousands of rows)
+    for (final bundle in tagSources) {
+      final content = utf8.encode(jsonEncode(bundle.toJson()));
+      archive.addFile(ArchiveFile('tag_sources/${_sanitize(bundle.source.id)}.json', content.length, content));
+    }
+
     // Add allowlisted settings blob (single flat key→value map)
     if (settings.isNotEmpty) {
       final content = utf8.encode(const JsonEncoder.withIndent('  ').convert(settings));
@@ -208,6 +223,7 @@ class PackService {
       characterPresetCount: characterPresets.length,
       userThemeCount: userThemes.length,
       galleryAlbumCount: galleryAlbums.length,
+      tagSourceCount: tagSources.length,
       hasSettings: settings.isNotEmpty,
     );
     final manifestContent = utf8.encode(const JsonEncoder.withIndent('  ').convert(manifest.toJson()));
@@ -361,6 +377,19 @@ class PackService {
       }
     }
 
+    // Load imported tag lists
+    final tagSources = <TagSourceBundle>[];
+    for (final file in archive) {
+      if (file.name.startsWith('tag_sources/') && file.name.endsWith('.json') && file.isFile) {
+        final filename = file.name.replaceFirst('tag_sources/', '');
+        if (filename.contains('..') || filename.contains('\\') || filename.contains(':') || filename.startsWith('/')) continue;
+        try {
+          final json = jsonDecode(utf8.decode(file.content as List<int>)) as Map<String, dynamic>;
+          tagSources.add(TagSourceBundle.fromJson(json));
+        } catch (_) {}
+      }
+    }
+
     // Load allowlisted settings blob
     var settings = <String, Object>{};
     final settingsFile = archive.findFile('settings.json');
@@ -384,6 +413,7 @@ class PackService {
       characterPresets: characterPresets,
       userThemes: userThemes,
       galleryAlbums: galleryAlbums,
+      tagSources: tagSources,
       settings: settings,
     );
   }

@@ -6619,6 +6619,311 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reasoning'**
   String get textGenReasoning;
+
+  /// No description provided for @tagSourcesOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag lists'**
+  String get tagSourcesOpen;
+
+  /// No description provided for @tagSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TAG LISTS'**
+  String get tagSourcesTitle;
+
+  /// No description provided for @tagSourcesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Danbooru / e621-style .csv or .json tag lists. Each list is kept separately, can be switched off, and is merged into autocomplete in the order shown (drag to reorder). The bundled list always wins name collisions.'**
+  String get tagSourcesDesc;
+
+  /// No description provided for @tagSourcesImport.
+  ///
+  /// In en, this message translates to:
+  /// **'IMPORT LIST'**
+  String get tagSourcesImport;
+
+  /// No description provided for @tagSourcesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No imported tag lists yet.'**
+  String get tagSourcesEmpty;
+
+  /// No description provided for @tagSourcesBundled.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundled Danbooru list (always on)'**
+  String get tagSourcesBundled;
+
+  /// No description provided for @tagSourcesTagCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags'**
+  String tagSourcesTagCount(int count);
+
+  /// No description provided for @tagSourcesUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update from file'**
+  String get tagSourcesUpdate;
+
+  /// No description provided for @tagSourcesRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get tagSourcesRename;
+
+  /// No description provided for @tagSourcesRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename list'**
+  String get tagSourcesRenameTitle;
+
+  /// No description provided for @tagSourcesExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get tagSourcesExport;
+
+  /// No description provided for @tagSourcesExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {name}'**
+  String tagSourcesExported(String name);
+
+  /// No description provided for @tagSourcesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get tagSourcesDelete;
+
+  /// No description provided for @tagSourcesDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" ({count} tags) from autocomplete? Favourites you set on its tags are kept in case you import it again.'**
+  String tagSourcesDeleteConfirm(String name, int count);
+
+  /// No description provided for @tagImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'IMPORT TAG LIST'**
+  String get tagImportTitle;
+
+  /// No description provided for @tagImportName.
+  ///
+  /// In en, this message translates to:
+  /// **'List name'**
+  String get tagImportName;
+
+  /// No description provided for @tagImportRows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows'**
+  String tagImportRows(int count);
+
+  /// No description provided for @tagImportFormatCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV'**
+  String get tagImportFormatCsv;
+
+  /// No description provided for @tagImportFormatCsvHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV with header row'**
+  String get tagImportFormatCsvHeader;
+
+  /// No description provided for @tagImportFormatJsonObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON objects'**
+  String get tagImportFormatJsonObjects;
+
+  /// No description provided for @tagImportFormatJsonStrings.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON list of names'**
+  String get tagImportFormatJsonStrings;
+
+  /// No description provided for @tagImportFormatJsonMap.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON name → count map'**
+  String get tagImportFormatJsonMap;
+
+  /// No description provided for @tagImportFormatText.
+  ///
+  /// In en, this message translates to:
+  /// **'Plain text, one tag per line'**
+  String get tagImportFormatText;
+
+  /// No description provided for @tagImportFormatUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrecognised file'**
+  String get tagImportFormatUnknown;
+
+  /// No description provided for @tagImportColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get tagImportColumns;
+
+  /// No description provided for @tagImportColName.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag name'**
+  String get tagImportColName;
+
+  /// No description provided for @tagImportColCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get tagImportColCategory;
+
+  /// No description provided for @tagImportColCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Count'**
+  String get tagImportColCount;
+
+  /// No description provided for @tagImportColAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Aliases'**
+  String get tagImportColAliases;
+
+  /// No description provided for @tagImportColNone.
+  ///
+  /// In en, this message translates to:
+  /// **'— none —'**
+  String get tagImportColNone;
+
+  /// No description provided for @tagImportProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Category numbering'**
+  String get tagImportProfile;
+
+  /// No description provided for @tagImportProfileDanbooru.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru (0 general · 1 artist · 3 copyright · 4 character · 5 meta)'**
+  String get tagImportProfileDanbooru;
+
+  /// No description provided for @tagImportProfileE621.
+  ///
+  /// In en, this message translates to:
+  /// **'e621 (5 species · 7 meta · 8 lore)'**
+  String get tagImportProfileE621;
+
+  /// No description provided for @tagImportProfileE621Merged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged Danbooru + e621 (e621 block at 7–15)'**
+  String get tagImportProfileE621Merged;
+
+  /// No description provided for @tagImportProfileCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom mapping'**
+  String get tagImportProfileCustom;
+
+  /// No description provided for @tagImportCustomMapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Map each category value found in the file:'**
+  String get tagImportCustomMapHint;
+
+  /// No description provided for @tagImportSkipValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip rows'**
+  String get tagImportSkipValue;
+
+  /// No description provided for @tagImportMinCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum post count'**
+  String get tagImportMinCount;
+
+  /// No description provided for @tagImportWillImport.
+  ///
+  /// In en, this message translates to:
+  /// **'{selected} of {total} tags pass the threshold'**
+  String tagImportWillImport(int selected, int total);
+
+  /// No description provided for @tagImportCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Include categories'**
+  String get tagImportCategories;
+
+  /// No description provided for @tagImportSpaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Underscores → spaces (NovelAI style)'**
+  String get tagImportSpaces;
+
+  /// No description provided for @tagImportAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Import aliases'**
+  String get tagImportAliases;
+
+  /// No description provided for @tagImportPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get tagImportPreview;
+
+  /// No description provided for @tagImportReplaceExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'A list named \"{name}\" already exists and will be replaced.'**
+  String tagImportReplaceExisting(String name);
+
+  /// No description provided for @tagImportButton.
+  ///
+  /// In en, this message translates to:
+  /// **'IMPORT'**
+  String get tagImportButton;
+
+  /// No description provided for @tagImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {imported} tags into \"{name}\"'**
+  String tagImportDone(int imported, String name);
+
+  /// No description provided for @tagImportSkippedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped {below} below count, {category} by category, {invalid} invalid, {duplicate} duplicates'**
+  String tagImportSkippedSummary(
+    int below,
+    int category,
+    int invalid,
+    int duplicate,
+  );
+
+  /// No description provided for @tagImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read tag list: {error}'**
+  String tagImportFailed(String error);
+
+  /// No description provided for @tagImportEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags found in this file.'**
+  String get tagImportEmpty;
+
+  /// No description provided for @packTagSourcesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'TAG LISTS ({selected}/{total})'**
+  String packTagSourcesSection(int selected, int total);
 }
 
 class _AppLocalizationsDelegate

@@ -60,6 +60,7 @@ import 'core/widgets/tag_suggestion_overlay.dart';
 import 'core/jukebox/providers/jukebox_notifier.dart';
 import 'core/jukebox/services/jukebox_audio_handler.dart';
 import 'core/services/tag_service.dart';
+import 'core/services/tag_source_service.dart';
 import 'core/services/wiki_service.dart';
 import 'core/services/wildcard_service.dart';
 import 'package:audio_service/audio_service.dart';
@@ -151,7 +152,11 @@ void main() {
     }
   }
 
-  final tagService = TagService(filePath: paths.tagFilePath);
+  final tagSourceService = TagSourceService(sourcesDir: paths.tagSourcesDir);
+  final tagService = TagService(
+    filePath: paths.tagFilePath,
+    sourceService: tagSourceService,
+  );
   final wildcardService = WildcardService(wildcardDir: paths.wildcardDir);
   final wikiService = WikiService();
   final characterLibraryService =
@@ -233,6 +238,7 @@ void main() {
                 ..updateTextGen(textGen),
         ),
         Provider<TagService>.value(value: tagService),
+        Provider<TagSourceService>.value(value: tagSourceService),
         Provider<WildcardService>.value(value: wildcardService),
         Provider<WikiService>.value(value: wikiService),
         ChangeNotifierProxyProvider6<GalleryNotifier, DirectorRefNotifier, VibeTransferNotifier, DirectorToolsNotifier, EnhanceNotifier, TextGenNotifier, GenerationNotifier>(

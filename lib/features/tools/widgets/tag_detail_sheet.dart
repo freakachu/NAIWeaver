@@ -5,6 +5,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/models/tag_category.dart';
 import '../../../core/services/tag_service.dart';
 import '../../../core/services/wiki_service.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -52,20 +53,7 @@ class _TagDetailSheetState extends State<TagDetailSheet> {
     return wiki.lookup(widget.tag.tag);
   }
 
-  Color _categoryColor(String? category) {
-    switch ((category ?? '').toLowerCase()) {
-      case 'copyright':
-        return const Color(0xFFD880FF);
-      case 'character':
-        return const Color(0xFF00AD00);
-      case 'artist':
-        return const Color(0xFFFF5858);
-      case 'meta':
-        return const Color(0xFFFF9229);
-      default:
-        return Colors.white;
-    }
-  }
+  Color _categoryColor(String? category) => TagCategories.colorFor(category ?? '');
 
   Future<void> _openLinkedTag(String tagName) async {
     final tagService = context.read<TagService>();

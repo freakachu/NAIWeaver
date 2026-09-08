@@ -11,28 +11,17 @@ import '../../../core/widgets/vision_slider.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../generation/providers/generation_notifier.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/models/tag_category.dart';
 import '../../../core/services/tag_service.dart';
 import '../providers/tag_library_notifier.dart';
 import 'tag_detail_sheet.dart';
+import 'tag_sources_sheet.dart';
 
 class TagLibraryManager extends StatelessWidget {
   const TagLibraryManager({super.key});
 
-  Color _getCategoryColor(String? category) {
-    if (category == null) return Colors.white;
-    switch (category.toLowerCase()) {
-      case 'copyright':
-        return const Color(0xFFD880FF); // Purple
-      case 'character':
-        return const Color(0xFF00AD00); // Green
-      case 'artist':
-        return const Color(0xFFFF5858); // Red
-      case 'meta':
-        return const Color(0xFFFF9229); // Orange
-      default:
-        return Colors.white;
-    }
-  }
+  Color _getCategoryColor(String? category) =>
+      category == null ? Colors.white : TagCategories.colorFor(category);
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +62,11 @@ class TagLibraryManager extends StatelessWidget {
               ),
               Row(
                 children: [
+                  IconButton(
+                    icon: Icon(Icons.library_books_outlined, size: 16, color: t.textDisabled),
+                    onPressed: () => TagSourcesSheet.show(context),
+                    tooltip: context.l.tagSourcesOpen,
+                  ),
                   IconButton(
                     icon:
                         Icon(Icons.settings, size: 16, color: t.textDisabled),
@@ -339,7 +333,7 @@ class TagLibraryManager extends StatelessWidget {
                 isExpanded: true,
                 dropdownColor: t.background,
                 style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(11)),
-                items: ['general', 'character', 'copyright', 'meta', 'artist']
+                items: TagCategories.all
                     .map((cat) => DropdownMenuItem(value: cat, child: Text(cat.toUpperCase())))
                     .toList(),
                 onChanged: (val) {
@@ -949,10 +943,16 @@ class _TagRowState extends State<_TagRow> {
                     if (!widget.mobile) ...[
                       Expanded(
                         flex: 1,
-                        child: Text(
-                          tag.typeName.toUpperCase(),
-                          style: TextStyle(color: color.withValues(alpha: 0.3), fontSize: t.fontSize(8)),
-                        ),
+                        child: Builder(builder: (context) {
+                          final badge = context.read<TagService>().sourceBadge(tag.sourceId);
+                          return Text(
+                            badge == null
+                                ? tag.typeName.toUpperCase()
+                                : '${tag.typeName.toUpperCase()} · $badge',
+                            style: TextStyle(color: color.withValues(alpha: 0.3), fontSize: t.fontSize(8)),
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        }),
                       ),
                       Expanded(
                         flex: 1,

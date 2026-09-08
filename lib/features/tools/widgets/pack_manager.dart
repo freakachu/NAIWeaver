@@ -17,12 +17,14 @@ import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/services/presets.dart';
 import '../../../core/services/styles.dart';
+import '../../../core/services/tag_source_service.dart';
 import '../../../core/theme/app_theme_config.dart';
 import '../../../core/theme/theme_notifier.dart';
 import '../../gallery/models/gallery_album.dart';
 import '../../gallery/providers/gallery_notifier.dart';
 import '../../generation/models/character_preset.dart';
 import '../../generation/providers/generation_notifier.dart';
+import '../providers/tag_library_notifier.dart';
 import '../providers/wildcard_notifier.dart';
 
 class PackManager extends StatefulWidget {
@@ -122,6 +124,8 @@ class _PackManagerState extends State<PackManager> {
     final userThemes = context.read<ThemeNotifier>().userThemes;
     final galleryAlbums = context.read<GalleryNotifier>().albums;
     final settings = context.read<PreferencesService>().exportableSettings();
+    final tagSourceService = context.read<TagSourceService>();
+    final tagSources = tagSourceService.sources.map((s) => tagSourceService.bundle(s.id)).toList();
 
     // Load current data
     final presets = await PresetStorage.loadPresets(gen.presetsFilePath);
@@ -152,6 +156,7 @@ class _PackManagerState extends State<PackManager> {
         characterPresets: characterPresets,
         userThemes: userThemes,
         galleryAlbums: galleryAlbums,
+        tagSources: tagSources,
         settings: settings,
       ),
     );
@@ -265,6 +270,7 @@ class _ExportDialog extends StatefulWidget {
   final List<CharacterPreset> characterPresets;
   final List<AppThemeConfig> userThemes;
   final List<GalleryAlbum> galleryAlbums;
+  final List<TagSourceBundle> tagSources;
   final Map<String, Object> settings;
 
   const _ExportDialog({
@@ -276,6 +282,7 @@ class _ExportDialog extends StatefulWidget {
     this.characterPresets = const [],
     this.userThemes = const [],
     this.galleryAlbums = const [],
+    this.tagSources = const [],
     this.settings = const {},
   });
 
@@ -294,12 +301,14 @@ class _ExportDialogState extends State<_ExportDialog> {
   late Set<int> _selectedCharacterPresets;
   late Set<int> _selectedThemes;
   late Set<int> _selectedAlbums;
+  late Set<int> _selectedTagSources;
   late bool _includeSettings;
   bool _exporting = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedTagSources = Set.from(List.generate(widget.tagSources.length, (i) => i));
     _selectedPresets = Set.from(List.generate(widget.presets.length, (i) => i));
     _selectedStyles = Set.from(List.generate(widget.styles.length, (i) => i));
     _selectedWildcards = Set.from(List.generate(widget.wildcardFiles.length, (i) => i));
@@ -466,6 +475,20 @@ class _ExportDialogState extends State<_ExportDialog> {
                   }, t, mobile),
                 const SizedBox(height: 12),
               ],
+              if (widget.tagSources.isNotEmpty) ...[
+                _sectionHeader(l.packTagSourcesSection(_selectedTagSources.length, widget.tagSources.length), t,
+                  allSelected: _selectedTagSources.length == widget.tagSources.length,
+                  onToggle: () => setState(() {
+                    if (_selectedTagSources.length == widget.tagSources.length) { _selectedTagSources.clear(); }
+                    else { _selectedTagSources = Set.from(List.generate(widget.tagSources.length, (i) => i)); }
+                  }),
+                ),
+                for (int i = 0; i < widget.tagSources.length; i++)
+                  _checkTile('${widget.tagSources[i].source.name} (${widget.tagSources[i].tags.length})', _selectedTagSources.contains(i), (v) {
+                    setState(() => v! ? _selectedTagSources.add(i) : _selectedTagSources.remove(i));
+                  }, t, mobile),
+                const SizedBox(height: 12),
+              ],
               if (widget.settings.isNotEmpty) ...[
                 _sectionHeader(l.packSettingsSection, t),
                 _checkTile(l.packSettingsItem, _includeSettings, (v) {
@@ -548,6 +571,7 @@ class _ExportDialogState extends State<_ExportDialog> {
       final selectedCharacterPresets = _selectedCharacterPresets.map((i) => widget.characterPresets[i]).toList();
       final selectedThemes = _selectedThemes.map((i) => widget.userThemes[i]).toList();
       final selectedAlbums = _selectedAlbums.map((i) => widget.galleryAlbums[i]).toList();
+      final selectedTagSources = _selectedTagSources.map((i) => widget.tagSources[i]).toList();
 
       final packBytes = PackService.exportPack(
         name: _nameController.text.trim(),
@@ -560,6 +584,7 @@ class _ExportDialogState extends State<_ExportDialog> {
         characterPresets: selectedCharacterPresets,
         userThemes: selectedThemes,
         galleryAlbums: selectedAlbums,
+        tagSources: selectedTagSources,
         settings: _includeSettings ? widget.settings : const {},
       );
 
@@ -608,12 +633,14 @@ class _ImportDialogState extends State<_ImportDialog> {
   late Set<int> _selectedCharacterPresets;
   late Set<int> _selectedThemes;
   late Set<int> _selectedAlbums;
+  late Set<int> _selectedTagSources;
   late bool _includeSettings;
   bool _importing = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedTagSources = Set.from(List.generate(widget.contents.tagSources.length, (i) => i));
     _selectedPresets = Set.from(List.generate(widget.contents.presets.length, (i) => i));
     _selectedStyles = Set.from(List.generate(widget.contents.styles.length, (i) => i));
     _selectedWildcards = Set.from(widget.contents.wildcards.keys);
@@ -631,7 +658,7 @@ class _ImportDialogState extends State<_ImportDialog> {
     final l = context.l;
     final mobile = isMobile(context);
     final m = widget.contents.manifest;
-    final total = _selectedPresets.length + _selectedStyles.length + _selectedWildcards.length + _selectedSavedRefs.length + _selectedSavedVibes.length + _selectedCharacterPresets.length + _selectedThemes.length + _selectedAlbums.length + (_includeSettings ? 1 : 0);
+    final total = _selectedPresets.length + _selectedStyles.length + _selectedWildcards.length + _selectedSavedRefs.length + _selectedSavedVibes.length + _selectedCharacterPresets.length + _selectedThemes.length + _selectedAlbums.length + _selectedTagSources.length + (_includeSettings ? 1 : 0);
 
     return AlertDialog(
       backgroundColor: t.surfaceHigh,
@@ -714,6 +741,14 @@ class _ImportDialogState extends State<_ImportDialog> {
                   }, t, mobile),
                 const SizedBox(height: 12),
               ],
+              if (widget.contents.tagSources.isNotEmpty) ...[
+                _sectionHeader(l.packTagSourcesSection(_selectedTagSources.length, widget.contents.tagSources.length), t),
+                for (int i = 0; i < widget.contents.tagSources.length; i++)
+                  _checkTile('${widget.contents.tagSources[i].source.name} (${widget.contents.tagSources[i].tags.length})', _selectedTagSources.contains(i), (v) {
+                    setState(() => v! ? _selectedTagSources.add(i) : _selectedTagSources.remove(i));
+                  }, t, mobile),
+                const SizedBox(height: 12),
+              ],
               if (widget.contents.settings.isNotEmpty) ...[
                 _sectionHeader(l.packSettingsSection, t),
                 _checkTile(l.packSettingsItem, _includeSettings, (v) {
@@ -773,6 +808,7 @@ class _ImportDialogState extends State<_ImportDialog> {
       final themeNotifier = context.read<ThemeNotifier>();
       final galleryNotifier = context.read<GalleryNotifier>();
       final prefs = context.read<PreferencesService>();
+      final tagLibrary = context.read<TagLibraryNotifier>();
 
       // Import presets (replace existing by name)
       if (_selectedPresets.isNotEmpty) {
@@ -863,6 +899,11 @@ class _ImportDialogState extends State<_ImportDialog> {
         final selected =
             _selectedAlbums.map((i) => widget.contents.galleryAlbums[i]).toList();
         await galleryNotifier.importAlbums(selected);
+      }
+
+      // Import tag lists (replace by id — a re-imported pack updates in place)
+      for (final i in _selectedTagSources) {
+        await tagLibrary.importBundle(widget.contents.tagSources[i]);
       }
 
       // Import allowlisted app/jukebox settings blob

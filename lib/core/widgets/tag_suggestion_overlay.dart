@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../models/tag_category.dart';
 import '../services/preferences_service.dart';
 import '../services/tag_service.dart';
 import '../theme/theme_extensions.dart';
@@ -34,28 +35,7 @@ class TagSuggestionOverlay extends StatefulWidget {
     this.selectedIndex = -1,
   });
 
-  static Color tagColor(DanbooruTag tag) {
-    switch (tag.typeName.toLowerCase()) {
-      case 'copyright':
-        return const Color(0xFFD880FF);
-      case 'character':
-        return const Color(0xFF00AD00);
-      case 'artist':
-        return const Color(0xFFFF5858);
-      case 'meta':
-        return const Color(0xFFFF9229);
-      case 'wildcard':
-        return const Color(0xFF00BCD4);
-      case 'wildcard_favorite':
-        return const Color(0xFFFFD740);
-      case 'saved_character':
-        return const Color(0xFF7AD7A0);
-      case 'category_shortcut':
-        return const Color(0xFFFF5858);
-      default:
-        return Colors.white;
-    }
-  }
+  static Color tagColor(DanbooruTag tag) => TagCategories.colorFor(tag.typeName);
 
   @override
   State<TagSuggestionOverlay> createState() => _TagSuggestionOverlayState();
@@ -184,6 +164,17 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                                         shadows: const [Shadow(color: Colors.black54, blurRadius: 1)],
                                       ),
                                     ),
+                                  if (tag.sourceId != null) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      context.read<TagService>().sourceBadge(tag.sourceId) ?? '',
+                                      style: TextStyle(
+                                        color: color.withValues(alpha: 0.55),
+                                        fontSize: t.fontSize(7),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
                                   if (!context.read<PreferencesService>().hideTagValues &&
                                       tag.typeName != 'category_shortcut' &&
                                       tag.typeName != 'saved_character') ...[

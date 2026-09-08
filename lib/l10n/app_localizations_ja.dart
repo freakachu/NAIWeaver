@@ -3485,4 +3485,181 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get textGenReasoning => '推論';
+
+  @override
+  String get tagSourcesOpen => 'タグリスト';
+
+  @override
+  String get tagSourcesTitle => 'タグリスト';
+
+  @override
+  String get tagSourcesDesc =>
+      'Danbooru / e621 形式の .csv や .json タグリストを取り込めます。各リストは個別に保持され、オン/オフの切り替えや、表示順（ドラッグで並べ替え）での自動補完への統合ができます。名前が重複した場合は内蔵リストが優先されます。';
+
+  @override
+  String get tagSourcesImport => 'リストを取り込む';
+
+  @override
+  String get tagSourcesEmpty => '取り込んだタグリストはまだありません。';
+
+  @override
+  String get tagSourcesBundled => '内蔵 Danbooru リスト（常に有効）';
+
+  @override
+  String tagSourcesTagCount(int count) {
+    return '$count件のタグ';
+  }
+
+  @override
+  String get tagSourcesUpdate => 'ファイルから更新';
+
+  @override
+  String get tagSourcesRename => '名前を変更';
+
+  @override
+  String get tagSourcesRenameTitle => 'リスト名を変更';
+
+  @override
+  String get tagSourcesExport => 'エクスポート';
+
+  @override
+  String tagSourcesExported(String name) {
+    return '$name をエクスポートしました';
+  }
+
+  @override
+  String get tagSourcesDelete => '削除';
+
+  @override
+  String tagSourcesDeleteConfirm(String name, int count) {
+    return '「$name」（$count件のタグ）を自動補完から削除しますか？ そのタグに付けたお気に入りは、再取り込みに備えて保持されます。';
+  }
+
+  @override
+  String get tagImportTitle => 'タグリストを取り込む';
+
+  @override
+  String get tagImportName => 'リスト名';
+
+  @override
+  String tagImportRows(int count) {
+    return '$count行';
+  }
+
+  @override
+  String get tagImportFormatCsv => 'CSV';
+
+  @override
+  String get tagImportFormatCsvHeader => 'ヘッダー行付き CSV';
+
+  @override
+  String get tagImportFormatJsonObjects => 'JSON オブジェクト';
+
+  @override
+  String get tagImportFormatJsonStrings => 'JSON 名前リスト';
+
+  @override
+  String get tagImportFormatJsonMap => 'JSON 名前 → 件数マップ';
+
+  @override
+  String get tagImportFormatText => 'テキスト（1行1タグ）';
+
+  @override
+  String get tagImportFormatUnknown => '認識できないファイル';
+
+  @override
+  String get tagImportColumns => '列';
+
+  @override
+  String get tagImportColName => 'タグ名';
+
+  @override
+  String get tagImportColCategory => 'カテゴリ';
+
+  @override
+  String get tagImportColCount => '件数';
+
+  @override
+  String get tagImportColAliases => '別名';
+
+  @override
+  String get tagImportColNone => '— なし —';
+
+  @override
+  String get tagImportProfile => 'カテゴリ番号の規則';
+
+  @override
+  String get tagImportProfileDanbooru =>
+      'Danbooru（0 一般 · 1 絵師 · 3 作品 · 4 キャラ · 5 メタ）';
+
+  @override
+  String get tagImportProfileE621 => 'e621（5 種族 · 7 メタ · 8 ロア）';
+
+  @override
+  String get tagImportProfileE621Merged => 'Danbooru + e621 統合（e621 は 7〜15）';
+
+  @override
+  String get tagImportProfileCustom => 'カスタム対応付け';
+
+  @override
+  String get tagImportCustomMapHint => 'ファイル内の各カテゴリ値を対応付けてください：';
+
+  @override
+  String get tagImportSkipValue => '行をスキップ';
+
+  @override
+  String get tagImportMinCount => '最小投稿数';
+
+  @override
+  String tagImportWillImport(int selected, int total) {
+    return '$total件中 $selected件がしきい値を満たします';
+  }
+
+  @override
+  String get tagImportCategories => '含めるカテゴリ';
+
+  @override
+  String get tagImportSpaces => 'アンダースコア → スペース（NovelAI 形式）';
+
+  @override
+  String get tagImportAliases => '別名も取り込む';
+
+  @override
+  String get tagImportPreview => 'プレビュー';
+
+  @override
+  String tagImportReplaceExisting(String name) {
+    return '「$name」という名前のリストは既に存在し、置き換えられます。';
+  }
+
+  @override
+  String get tagImportButton => '取り込む';
+
+  @override
+  String tagImportDone(int imported, String name) {
+    return '$imported件のタグを「$name」に取り込みました';
+  }
+
+  @override
+  String tagImportSkippedSummary(
+    int below,
+    int category,
+    int invalid,
+    int duplicate,
+  ) {
+    return 'スキップ：件数不足 $below、カテゴリ除外 $category、無効 $invalid、重複 $duplicate';
+  }
+
+  @override
+  String tagImportFailed(String error) {
+    return 'タグリストを読み込めませんでした: $error';
+  }
+
+  @override
+  String get tagImportEmpty => 'このファイルにタグが見つかりません。';
+
+  @override
+  String packTagSourcesSection(int selected, int total) {
+    return 'タグリスト ($selected/$total)';
+  }
 }

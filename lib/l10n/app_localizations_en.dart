@@ -3549,4 +3549,183 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get textGenReasoning => 'Reasoning';
+
+  @override
+  String get tagSourcesOpen => 'Tag lists';
+
+  @override
+  String get tagSourcesTitle => 'TAG LISTS';
+
+  @override
+  String get tagSourcesDesc =>
+      'Import Danbooru / e621-style .csv or .json tag lists. Each list is kept separately, can be switched off, and is merged into autocomplete in the order shown (drag to reorder). The bundled list always wins name collisions.';
+
+  @override
+  String get tagSourcesImport => 'IMPORT LIST';
+
+  @override
+  String get tagSourcesEmpty => 'No imported tag lists yet.';
+
+  @override
+  String get tagSourcesBundled => 'Bundled Danbooru list (always on)';
+
+  @override
+  String tagSourcesTagCount(int count) {
+    return '$count tags';
+  }
+
+  @override
+  String get tagSourcesUpdate => 'Update from file';
+
+  @override
+  String get tagSourcesRename => 'Rename';
+
+  @override
+  String get tagSourcesRenameTitle => 'Rename list';
+
+  @override
+  String get tagSourcesExport => 'Export';
+
+  @override
+  String tagSourcesExported(String name) {
+    return 'Exported $name';
+  }
+
+  @override
+  String get tagSourcesDelete => 'Delete';
+
+  @override
+  String tagSourcesDeleteConfirm(String name, int count) {
+    return 'Remove \"$name\" ($count tags) from autocomplete? Favourites you set on its tags are kept in case you import it again.';
+  }
+
+  @override
+  String get tagImportTitle => 'IMPORT TAG LIST';
+
+  @override
+  String get tagImportName => 'List name';
+
+  @override
+  String tagImportRows(int count) {
+    return '$count rows';
+  }
+
+  @override
+  String get tagImportFormatCsv => 'CSV';
+
+  @override
+  String get tagImportFormatCsvHeader => 'CSV with header row';
+
+  @override
+  String get tagImportFormatJsonObjects => 'JSON objects';
+
+  @override
+  String get tagImportFormatJsonStrings => 'JSON list of names';
+
+  @override
+  String get tagImportFormatJsonMap => 'JSON name → count map';
+
+  @override
+  String get tagImportFormatText => 'Plain text, one tag per line';
+
+  @override
+  String get tagImportFormatUnknown => 'Unrecognised file';
+
+  @override
+  String get tagImportColumns => 'Columns';
+
+  @override
+  String get tagImportColName => 'Tag name';
+
+  @override
+  String get tagImportColCategory => 'Category';
+
+  @override
+  String get tagImportColCount => 'Count';
+
+  @override
+  String get tagImportColAliases => 'Aliases';
+
+  @override
+  String get tagImportColNone => '— none —';
+
+  @override
+  String get tagImportProfile => 'Category numbering';
+
+  @override
+  String get tagImportProfileDanbooru =>
+      'Danbooru (0 general · 1 artist · 3 copyright · 4 character · 5 meta)';
+
+  @override
+  String get tagImportProfileE621 => 'e621 (5 species · 7 meta · 8 lore)';
+
+  @override
+  String get tagImportProfileE621Merged =>
+      'Merged Danbooru + e621 (e621 block at 7–15)';
+
+  @override
+  String get tagImportProfileCustom => 'Custom mapping';
+
+  @override
+  String get tagImportCustomMapHint =>
+      'Map each category value found in the file:';
+
+  @override
+  String get tagImportSkipValue => 'Skip rows';
+
+  @override
+  String get tagImportMinCount => 'Minimum post count';
+
+  @override
+  String tagImportWillImport(int selected, int total) {
+    return '$selected of $total tags pass the threshold';
+  }
+
+  @override
+  String get tagImportCategories => 'Include categories';
+
+  @override
+  String get tagImportSpaces => 'Underscores → spaces (NovelAI style)';
+
+  @override
+  String get tagImportAliases => 'Import aliases';
+
+  @override
+  String get tagImportPreview => 'Preview';
+
+  @override
+  String tagImportReplaceExisting(String name) {
+    return 'A list named \"$name\" already exists and will be replaced.';
+  }
+
+  @override
+  String get tagImportButton => 'IMPORT';
+
+  @override
+  String tagImportDone(int imported, String name) {
+    return 'Imported $imported tags into \"$name\"';
+  }
+
+  @override
+  String tagImportSkippedSummary(
+    int below,
+    int category,
+    int invalid,
+    int duplicate,
+  ) {
+    return 'skipped $below below count, $category by category, $invalid invalid, $duplicate duplicates';
+  }
+
+  @override
+  String tagImportFailed(String error) {
+    return 'Could not read tag list: $error';
+  }
+
+  @override
+  String get tagImportEmpty => 'No tags found in this file.';
+
+  @override
+  String packTagSourcesSection(int selected, int total) {
+    return 'TAG LISTS ($selected/$total)';
+  }
 }

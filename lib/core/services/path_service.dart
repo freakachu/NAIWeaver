@@ -21,6 +21,8 @@ class PathService {
   String get presetsFilePath => p.join(baseDir, 'presets.json');
   String get stylesFilePath => p.join(baseDir, 'prompt_styles.json');
   String get examplesDir => p.join(baseDir, 'Tags', 'Examples');
+  /// Imported tag lists (manifest + one JSON per source) — see TagSourceService.
+  String get tagSourcesDir => p.join(baseDir, 'Tags', 'sources');
   String get referenceLibraryFilePath => p.join(baseDir, 'reference_library.json');
   String get canvasSessionDir => p.join(baseDir, 'canvas_sessions');
   String get charactersDir => p.join(baseDir, 'characters');
@@ -52,6 +54,7 @@ class PathService {
     await Directory(outputDir).create(recursive: true);
     await Directory(wildcardDir).create(recursive: true);
     await Directory(p.dirname(tagFilePath)).create(recursive: true);
+    await Directory(tagSourcesDir).create(recursive: true);
     await Directory(canvasSessionDir).create(recursive: true);
     await Directory(charactersDir).create(recursive: true);
     await Directory(mlModelsDir).create(recursive: true);

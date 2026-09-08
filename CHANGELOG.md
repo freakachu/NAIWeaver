@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Import your own tag lists (Danbooru / e621 CSV, JSON, plain text).** Tag Library → the new *Tag lists* button. Drop in an a1111-tagcomplete style `name,category,count,"aliases"` CSV (no header), a header CSV in any column order (including e621's `db_export` dump, gzipped or not), a JSON array/map, or one-tag-per-line text. The importer sniffs the shape, lets you fix the column mapping, and asks which **category numbering** the file uses — the same digit means *meta* on Danbooru and *species* on e621, so Danbooru / e621 / merged-list / custom profiles are offered with an auto-guess. Pick a minimum post count (with a live "N of M" readout), which categories to keep, and whether underscores become spaces (on by default; emoticon tags like `^_^` are left alone). Each list is stored separately from the bundled Danbooru data, can be toggled off, reordered (priority on name collisions; the bundled list always wins and just absorbs extra aliases), renamed, updated from a newer file, exported, or deleted. Suggestions from an imported list carry a small source badge. New categories **species**, **lore** and **contributor** get their own colours, and `/fs` / `/fl` join the favourites shortcuts. Favourites and example images set on imported tags live in a sidecar, so re-importing an updated list keeps them. Imported lists are included in `.vpack` backups.
+- **Faster autocomplete.** Prefix matches now come from a sorted name index (binary search) instead of a scan over every tag, and the substring / alias passes only run when the prefix pass hasn't already filled the list — so a large imported e621 list doesn't make typing sluggish.
+
 ## v0.9.3
 
 ### New

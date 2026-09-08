@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+import 'tag_source_service.dart';
+
 class DanbooruTag {
   final String tag;
   final int count;
@@ -11,6 +13,11 @@ class DanbooruTag {
   final List<String> examplePaths;
   final List<String> aliases;
   final String? matchedAlias;
+
+  /// Id of the imported tag list this tag came from, or null for the bundled
+  /// Danbooru list (and for synthetic suggestion entries). Never serialised
+  /// into the bundled file — a source's own file implies it.
+  final String? sourceId;
 
   /// For `typeName == 'saved_character'`: the pre-expanded tag string inserted
   /// at the cursor when this suggestion is picked. The default `expansion`
@@ -35,6 +42,7 @@ class DanbooruTag {
     this.examplePaths = const [],
     this.aliases = const [],
     this.matchedAlias,
+    this.sourceId,
     this.expansion,
     this.flatExpansion,
     this.negativeExpansion,
@@ -48,6 +56,7 @@ class DanbooruTag {
     List<String>? examplePaths,
     List<String>? aliases,
     String? Function()? matchedAlias,
+    String? Function()? sourceId,
     String? Function()? expansion,
     String? Function()? flatExpansion,
     String? Function()? negativeExpansion,
@@ -60,6 +69,7 @@ class DanbooruTag {
       examplePaths: examplePaths ?? this.examplePaths,
       aliases: aliases ?? this.aliases,
       matchedAlias: matchedAlias != null ? matchedAlias() : this.matchedAlias,
+      sourceId: sourceId != null ? sourceId() : this.sourceId,
       expansion: expansion != null ? expansion() : this.expansion,
       flatExpansion: flatExpansion != null ? flatExpansion() : this.flatExpansion,
       negativeExpansion: negativeExpansion != null ? negativeExpansion() : this.negativeExpansion,
@@ -69,7 +79,7 @@ class DanbooruTag {
   factory DanbooruTag.fromJson(Map<String, dynamic> json) {
     return DanbooruTag(
       tag: json['tag'] as String,
-      count: json['count'] as int,
+      count: (json['count'] as num?)?.toInt() ?? 0,
       typeName: json['type_name'] as String? ?? 'general',
       isFavorite: json['is_favorite'] as bool? ?? false,
       examplePaths: (json['example_paths'] as List<dynamic>?)
@@ -95,12 +105,32 @@ class DanbooruTag {
   }
 }
 
+/// Tag lookup for autocomplete and the Tag Library.
+///
+/// Two layers:
+/// - the **bundled** Danbooru list at [filePath] (user edits — favourites,
+///   custom tags, example images — are written back into that file), and
+/// - zero or more **imported sources** held by [sourceService], merged in at
+///   load time and whenever a source changes.
+///
+/// `_tags` is the merged view every query runs against. On a name collision
+/// the bundled record wins (it carries the user's favourites/examples); the
+/// imported record only contributes extra aliases and a higher count.
 class TagService {
   final String filePath;
+  final TagSourceService? sourceService;
+
+  List<DanbooruTag> _bundled = [];
   List<DanbooruTag> _tags = [];
   bool _isLoaded = false;
   Set<String>? _tagSet;
   Map<String, int>? _aliasToTagIndex;
+
+  // Name index: merged-list indices ordered by lower-cased name, plus the
+  // parallel list of those names, so a prefix query is a binary search
+  // instead of a scan over every tag.
+  List<int> _nameOrder = const [];
+  List<String> _lowerNames = const [];
 
   Set<String> get tagSet {
     _tagSet ??= _tags.map((t) => t.tag.toLowerCase()).toSet();
@@ -117,43 +147,103 @@ class TagService {
     return false;
   }
 
-  TagService({required this.filePath});
+  TagService({required this.filePath, this.sourceService});
 
   bool get isLoaded => _isLoaded;
+
+  /// The merged view: bundled tags plus every enabled imported source.
   List<DanbooruTag> get tags => _tags;
+
+  /// Bundled tags only (what [saveTags] writes).
+  List<DanbooruTag> get bundledTags => _bundled;
+
+  /// Short label for a source id (suggestion-chip badge), or null.
+  String? sourceBadge(String? sourceId) {
+    if (sourceId == null) return null;
+    return sourceService?.byId(sourceId)?.badge;
+  }
 
   Future<void> loadTags() async {
     try {
+      String content;
       if (kIsWeb) {
-        final content = await rootBundle.loadString('Tags/high-frequency-tags-list.json');
-        _tags = await compute(_parseTags, content);
-        _mergeNaiV5Tags();
-        _tags.sort((a, b) => b.count.compareTo(a.count));
-        _tagSet = null;
-        _buildAliasIndex();
-        _isLoaded = true;
-        return;
-      }
-      final file = File(filePath);
-      if (!await file.exists()) {
-        debugPrint("Tag file not found: $filePath");
-        return;
+        content = await rootBundle.loadString('Tags/high-frequency-tags-list.json');
+      } else {
+        final file = File(filePath);
+        if (!await file.exists()) {
+          debugPrint("Tag file not found: $filePath");
+          return;
+        }
+        content = await file.readAsString();
       }
 
       // Using compute for heavy JSON parsing to keep UI responsive
-      _tags = await compute(_parseTags, await file.readAsString());
+      _bundled = await compute(_parseTags, content);
       _mergeNaiV5Tags();
 
-      // Sort tags by count descending for faster suggestion ranking
-      _tags.sort((a, b) => b.count.compareTo(a.count));
+      if (sourceService != null && !sourceService!.isLoaded) {
+        await sourceService!.load();
+      }
 
-      _tagSet = null;
-      _buildAliasIndex();
+      _rebuild();
       _isLoaded = true;
-      debugPrint("Loaded ${_tags.length} tags.");
+      debugPrint("Loaded ${_bundled.length} bundled tags, ${_tags.length} merged.");
     } catch (e) {
       debugPrint("Error loading tags: $e");
     }
+  }
+
+  /// Re-merges imported sources into the lookup view. Call after any change
+  /// to [sourceService] (import, enable/disable, reorder, delete).
+  void refreshSources() {
+    if (!_isLoaded) return;
+    _rebuild();
+  }
+
+  void _rebuild() {
+    final merged = <DanbooruTag>[];
+    final index = <String, int>{};
+
+    for (final t in _bundled) {
+      final k = t.tag.toLowerCase();
+      if (index.containsKey(k)) continue;
+      index[k] = merged.length;
+      merged.add(t);
+    }
+
+    final sources = sourceService;
+    if (sources != null) {
+      for (final src in sources.enabledSources) {
+        for (final t in sources.tagsOf(src.id)) {
+          final k = t.tag.toLowerCase();
+          final existingIdx = index[k];
+          if (existingIdx != null) {
+            // Collision: keep the higher-priority record, absorb extras.
+            final ex = merged[existingIdx];
+            final extra = t.aliases.where((a) => !ex.aliases.contains(a)).toList();
+            if (extra.isNotEmpty || t.count > ex.count) {
+              merged[existingIdx] = ex.copyWith(
+                aliases: extra.isEmpty ? null : [...ex.aliases, ...extra],
+                count: t.count > ex.count ? t.count : null,
+              );
+            }
+            continue;
+          }
+          final st = sources.stateFor(k);
+          index[k] = merged.length;
+          merged.add(st == null
+              ? t
+              : t.copyWith(isFavorite: st.favorite, examplePaths: st.examples));
+        }
+      }
+    }
+
+    // Sort tags by count descending for suggestion ranking
+    merged.sort((a, b) => b.count.compareTo(a.count));
+    _tags = merged;
+    _tagSet = null;
+    _buildAliasIndex();
+    _buildNameIndex();
   }
 
   void _buildAliasIndex() {
@@ -169,6 +259,31 @@ class TagService {
       }
     }
     _aliasToTagIndex = index;
+  }
+
+  void _buildNameIndex() {
+    final order = List<int>.generate(_tags.length, (i) => i);
+    final names = _tags.map((t) => t.tag.toLowerCase()).toList(growable: false);
+    order.sort((a, b) => names[a].compareTo(names[b]));
+    _nameOrder = order;
+    _lowerNames = order.map((i) => names[i]).toList(growable: false);
+  }
+
+  /// Indices (into [_tags]) of every tag whose lower-cased name starts with
+  /// [lowerQuery], via binary search on the name index.
+  Iterable<int> _prefixIndices(String lowerQuery) sync* {
+    var lo = 0, hi = _lowerNames.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (_lowerNames[mid].compareTo(lowerQuery) < 0) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    for (var i = lo; i < _lowerNames.length && _lowerNames[i].startsWith(lowerQuery); i++) {
+      yield _nameOrder[i];
+    }
   }
 
   /// Tags NovelAI introduced with Diffusion V5 (journal post, 2026-08-21).
@@ -195,10 +310,10 @@ class TagService {
   ];
 
   void _mergeNaiV5Tags() {
-    final existing = _tags.map((t) => t.tag.toLowerCase()).toSet();
+    final existing = _bundled.map((t) => t.tag.toLowerCase()).toSet();
     for (final tag in naiV5Tags) {
       if (existing.contains(tag)) continue;
-      _tags.add(DanbooruTag(tag: tag, count: 500, typeName: 'general'));
+      _bundled.add(DanbooruTag(tag: tag, count: 500, typeName: 'general'));
     }
   }
 
@@ -207,61 +322,16 @@ class TagService {
     return decoded.map((item) => DanbooruTag.fromJson(item)).toList();
   }
 
+  static int _compareTag(DanbooruTag a, DanbooruTag b) {
+    if (a.isFavorite && !b.isFavorite) return -1;
+    if (!a.isFavorite && b.isFavorite) return 1;
+    return b.count.compareTo(a.count);
+  }
+
   List<DanbooruTag> getSuggestions(String query, {int limit = 20}) {
     final minLength = containsNonAscii(query) ? 1 : 3;
     if (!_isLoaded || query.length < minLength) return [];
-
-    final lowercaseQuery = query.toLowerCase();
-    final seenTags = <String>{};
-
-    // Tier 1: English tag prefix/contains matches
-    final List<DanbooruTag> prefixMatches = [];
-    final List<DanbooruTag> wordMatches = [];
-
-    for (final tag in _tags) {
-      final lowerTag = tag.tag.toLowerCase();
-      if (lowerTag.startsWith(lowercaseQuery)) {
-        prefixMatches.add(tag);
-        seenTags.add(lowerTag);
-      } else if (lowerTag.contains(lowercaseQuery)) {
-        wordMatches.add(tag);
-        seenTags.add(lowerTag);
-      }
-    }
-
-    // Tier 2: Alias prefix/contains matches
-    final List<DanbooruTag> aliasMatches = [];
-    if (_aliasToTagIndex != null) {
-      for (final entry in _aliasToTagIndex!.entries) {
-        final alias = entry.key;
-        final tagIndex = entry.value;
-        if (alias.startsWith(lowercaseQuery) || alias.contains(lowercaseQuery)) {
-          final tag = _tags[tagIndex];
-          if (!seenTags.contains(tag.tag.toLowerCase())) {
-            // Find the original-cased alias for display
-            final originalAlias = tag.aliases.firstWhere(
-              (a) => a.toLowerCase() == alias,
-              orElse: () => alias,
-            );
-            aliasMatches.add(tag.copyWith(matchedAlias: () => originalAlias));
-            seenTags.add(tag.tag.toLowerCase());
-          }
-        }
-      }
-    }
-
-    // Sort each group: favorites first, then by count
-    int compareTag(DanbooruTag a, DanbooruTag b) {
-      if (a.isFavorite && !b.isFavorite) return -1;
-      if (!a.isFavorite && b.isFavorite) return 1;
-      return b.count.compareTo(a.count);
-    }
-
-    prefixMatches.sort(compareTag);
-    wordMatches.sort(compareTag);
-    aliasMatches.sort(compareTag);
-
-    return [...prefixMatches, ...wordMatches, ...aliasMatches].take(limit).toList();
+    return _search(query.toLowerCase(), limit: limit, category: null);
   }
 
   List<DanbooruTag> getTagsByCategory(String query, String category, {int limit = 20}) {
@@ -276,55 +346,61 @@ class TagService {
           .where((tag) => tag.isFavorite && tag.typeName.toLowerCase() == lowerCategory)
           .toList();
     }
+    return _search(lowerQuery, limit: limit, category: lowerCategory);
+  }
 
+  /// Three tiers — prefix matches, then substring matches, then alias
+  /// matches — each sorted favourites-first then by count. Later tiers are
+  /// only computed when the earlier ones have not already filled [limit],
+  /// which keeps the common case to one binary search plus a short walk.
+  List<DanbooruTag> _search(String lowerQuery, {required int limit, required String? category}) {
     final seenTags = <String>{};
+    bool inCategory(DanbooruTag t) => category == null || t.typeName.toLowerCase() == category;
 
-    // Non-empty query → prefix/contains matching within category, favorites first
-    final List<DanbooruTag> prefixMatches = [];
-    final List<DanbooruTag> wordMatches = [];
+    final prefixMatches = <DanbooruTag>[];
+    for (final i in _prefixIndices(lowerQuery)) {
+      final tag = _tags[i];
+      if (!inCategory(tag)) continue;
+      prefixMatches.add(tag);
+      seenTags.add(tag.tag.toLowerCase());
+    }
+    prefixMatches.sort(_compareTag);
+    if (prefixMatches.length >= limit) return prefixMatches.take(limit).toList();
 
+    final wordMatches = <DanbooruTag>[];
     for (final tag in _tags) {
-      if (tag.typeName.toLowerCase() != lowerCategory) continue;
+      if (!inCategory(tag)) continue;
       final lowerTag = tag.tag.toLowerCase();
-      if (lowerTag.startsWith(lowerQuery)) {
-        prefixMatches.add(tag);
-        seenTags.add(lowerTag);
-      } else if (lowerTag.contains(lowerQuery)) {
+      if (seenTags.contains(lowerTag)) continue;
+      if (lowerTag.contains(lowerQuery)) {
         wordMatches.add(tag);
         seenTags.add(lowerTag);
       }
     }
+    wordMatches.sort(_compareTag);
+    if (prefixMatches.length + wordMatches.length >= limit) {
+      return [...prefixMatches, ...wordMatches].take(limit).toList();
+    }
 
-    // Alias matches within category
-    final List<DanbooruTag> aliasMatches = [];
+    final aliasMatches = <DanbooruTag>[];
     if (_aliasToTagIndex != null) {
       for (final entry in _aliasToTagIndex!.entries) {
         final alias = entry.key;
-        final tagIndex = entry.value;
-        if (alias.startsWith(lowerQuery) || alias.contains(lowerQuery)) {
-          final tag = _tags[tagIndex];
-          if (tag.typeName.toLowerCase() != lowerCategory) continue;
-          if (!seenTags.contains(tag.tag.toLowerCase())) {
-            final originalAlias = tag.aliases.firstWhere(
-              (a) => a.toLowerCase() == alias,
-              orElse: () => alias,
-            );
-            aliasMatches.add(tag.copyWith(matchedAlias: () => originalAlias));
-            seenTags.add(tag.tag.toLowerCase());
-          }
-        }
+        if (!alias.contains(lowerQuery)) continue;
+        final tag = _tags[entry.value];
+        if (!inCategory(tag)) continue;
+        final lowerTag = tag.tag.toLowerCase();
+        if (seenTags.contains(lowerTag)) continue;
+        // Find the original-cased alias for display
+        final originalAlias = tag.aliases.firstWhere(
+          (a) => a.toLowerCase() == alias,
+          orElse: () => alias,
+        );
+        aliasMatches.add(tag.copyWith(matchedAlias: () => originalAlias));
+        seenTags.add(lowerTag);
       }
     }
-
-    int compareTag(DanbooruTag a, DanbooruTag b) {
-      if (a.isFavorite && !b.isFavorite) return -1;
-      if (!a.isFavorite && b.isFavorite) return 1;
-      return b.count.compareTo(a.count);
-    }
-
-    prefixMatches.sort(compareTag);
-    wordMatches.sort(compareTag);
-    aliasMatches.sort(compareTag);
+    aliasMatches.sort(_compareTag);
 
     return [...prefixMatches, ...wordMatches, ...aliasMatches].take(limit).toList();
   }
@@ -418,7 +494,7 @@ class TagService {
 
   List<DanbooruTag> getFavorites({String? category}) {
     if (!_isLoaded) return [];
-    
+
     return _tags.where((tag) {
       final isFav = tag.isFavorite;
       if (category == null) return isFav;
@@ -426,51 +502,99 @@ class TagService {
     }).toList();
   }
 
-  Future<void> toggleFavorite(DanbooruTag tag) async {
-    final index = _tags.indexWhere((t) => t.tag == tag.tag);
-    if (index != -1) {
-      _tags[index] = _tags[index].copyWith(isFavorite: !_tags[index].isFavorite);
-      await saveTags();
+  // ── Mutations ────────────────────────────────────────────────────────
+  //
+  // Bundled tags are edited in `_bundled` and written back to the bundled
+  // file; imported tags keep favourites/examples in the source service's
+  // user-state sidecar. Either way the merged view is rebuilt afterwards.
+
+  int _bundledIndexOf(String tagName) {
+    final lower = tagName.toLowerCase();
+    return _bundled.indexWhere((t) => t.tag.toLowerCase() == lower);
+  }
+
+  DanbooruTag? _mergedByName(String tagName) {
+    final lower = tagName.toLowerCase();
+    for (final i in _prefixIndices(lower)) {
+      if (_tags[i].tag.toLowerCase() == lower) return _tags[i];
     }
+    return null;
+  }
+
+  Future<void> toggleFavorite(DanbooruTag tag) async {
+    final bi = _bundledIndexOf(tag.tag);
+    if (bi != -1) {
+      _bundled[bi] = _bundled[bi].copyWith(isFavorite: !_bundled[bi].isFavorite);
+      _rebuild();
+      await saveTags();
+      return;
+    }
+    final sources = sourceService;
+    if (sources == null) return;
+    final current = _mergedByName(tag.tag)?.isFavorite ?? tag.isFavorite;
+    await sources.setFavorite(tag.tag, !current);
+    _rebuild();
   }
 
   Future<void> addTag(DanbooruTag tag) async {
-    _tags.add(tag);
-    _tags.sort((a, b) => b.count.compareTo(a.count));
+    _bundled.add(tag.copyWith(sourceId: () => null));
+    _rebuild();
     await saveTags();
   }
 
   Future<void> deleteTag(DanbooruTag tag) async {
-    _tags.removeWhere((t) => t.tag == tag.tag);
-    await saveTags();
+    final bi = _bundledIndexOf(tag.tag);
+    if (bi != -1) {
+      _bundled.removeAt(bi);
+      _rebuild();
+      await saveTags();
+      return;
+    }
+    final sourceId = tag.sourceId ?? _mergedByName(tag.tag)?.sourceId;
+    if (sourceId != null && sourceService != null) {
+      await sourceService!.removeTag(sourceId, tag.tag);
+      _rebuild();
+    }
   }
 
   Future<void> addExampleToTag(String tagName, String path) async {
-    final index = _tags.indexWhere((t) => t.tag == tagName);
-    if (index != -1) {
-      final updatedPaths = List<String>.from(_tags[index].examplePaths)
-        ..add(path);
-      _tags[index] = _tags[index].copyWith(examplePaths: updatedPaths);
+    final bi = _bundledIndexOf(tagName);
+    if (bi != -1) {
+      final updatedPaths = List<String>.from(_bundled[bi].examplePaths)..add(path);
+      _bundled[bi] = _bundled[bi].copyWith(examplePaths: updatedPaths);
+      _rebuild();
       await saveTags();
+      return;
+    }
+    if (sourceService != null && _mergedByName(tagName) != null) {
+      await sourceService!.addExample(tagName, path);
+      _rebuild();
     }
   }
 
   Future<void> removeExampleFromTag(String tagName, String path) async {
-    final index = _tags.indexWhere((t) => t.tag == tagName);
-    if (index != -1) {
-      final updatedPaths = List<String>.from(_tags[index].examplePaths)
-        ..remove(path);
-      _tags[index] = _tags[index].copyWith(examplePaths: updatedPaths);
+    final bi = _bundledIndexOf(tagName);
+    if (bi != -1) {
+      final updatedPaths = List<String>.from(_bundled[bi].examplePaths)..remove(path);
+      _bundled[bi] = _bundled[bi].copyWith(examplePaths: updatedPaths);
+      _rebuild();
       await saveTags();
+      return;
+    }
+    if (sourceService != null) {
+      await sourceService!.removeExample(tagName, path);
+      _rebuild();
     }
   }
 
   Future<void> clearAllExamples() async {
-    for (int i = 0; i < _tags.length; i++) {
-      if (_tags[i].examplePaths.isNotEmpty) {
-        _tags[i] = _tags[i].copyWith(examplePaths: []);
+    for (int i = 0; i < _bundled.length; i++) {
+      if (_bundled[i].examplePaths.isNotEmpty) {
+        _bundled[i] = _bundled[i].copyWith(examplePaths: []);
       }
     }
+    await sourceService?.clearAllExamples();
+    _rebuild();
     await saveTags();
   }
 
@@ -482,9 +606,9 @@ class TagService {
     if (kIsWeb) return;
     try {
       final file = File(filePath);
-      final jsonString = await compute(_serializeTags, _tags);
+      final jsonString = await compute(_serializeTags, _bundled);
       await file.writeAsString(jsonString);
-      debugPrint("Saved ${_tags.length} tags to $filePath");
+      debugPrint("Saved ${_bundled.length} tags to $filePath");
     } catch (e) {
       debugPrint("Error saving tags: $e");
     }

@@ -74,7 +74,9 @@ lib/
 │   │   ├── wildcard_processor.dart        # __wildcard__ pattern replacement (recursive, 5 levels)
 │   │   ├── presets.dart                   # GenerationPreset model + JSON persistence
 │   │   ├── styles.dart                    # PromptStyle model + JSON persistence
-│   │   ├── tag_service.dart               # Danbooru tag auto-complete from Tags/ JSON
+│   │   ├── tag_service.dart               # Tag auto-complete: bundled Danbooru list + imported sources merged; sorted-name prefix index
+│   │   ├── tag_source_service.dart        # Imported tag lists: manifest + one JSON per source under Tags/sources, favourites sidecar
+│   │   ├── tag_list_parser.dart           # Sniff/parse user tag lists (a1111 CSV, header CSV, e621 db_export, JSON, text, gzip)
 │   │   ├── reference_library_service.dart # Reference library operations
 │   │   └── download_manager.dart          # Generic download manager shared across features
 │   ├── utils/

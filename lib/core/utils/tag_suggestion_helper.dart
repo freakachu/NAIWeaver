@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/tag_category.dart';
 import '../services/tag_service.dart';
 import '../services/wildcard_service.dart';
 
@@ -63,15 +64,11 @@ class TagSuggestionHelper {
     }
 
     if (supportFavorites && lookupWord.startsWith('/f')) {
+      // `/fg` general, `/fa` artist, `/fc` character, `/fr` copyright,
+      // `/fm` meta, `/fs` species, `/fl` lore — see TagCategories.
       String? category;
       if (lookupWord.length > 2) {
-        switch (lookupWord.substring(2, 3)) {
-          case 'g': category = 'general'; break;
-          case 'a': category = 'artist'; break;
-          case 'c': category = 'character'; break;
-          case 'r': category = 'copyright'; break;
-          case 'm': category = 'meta'; break;
-        }
+        category = TagCategories.fromShortcutLetter(lookupWord.substring(2, 3));
       }
 
       return TagSuggestionResult(

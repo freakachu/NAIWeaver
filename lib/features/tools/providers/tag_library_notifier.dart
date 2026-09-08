@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/models/tag_source.dart';
 import '../../../core/services/tag_service.dart';
+import '../../../core/services/tag_source_service.dart';
 
 class TagPreviewSettings {
   final String positivePrompt;
@@ -338,5 +340,43 @@ class TagLibraryNotifier extends ChangeNotifier {
 
   List<String> getCategories() {
     return tagService.tags.map((t) => t.typeName).toSet().toList()..sort();
+  }
+
+  // ── Imported tag lists ───────────────────────────────────────────────
+
+  TagSourceService? get sources => tagService.sourceService;
+
+  /// Adds or replaces an imported list and re-merges autocomplete.
+  Future<void> importSource(TagSource source, List<DanbooruTag> tags) async {
+    final s = sources;
+    if (s == null) return;
+    await s.put(source, tags);
+    tagService.refreshSources();
+    _refreshTags();
+  }
+
+  Future<void> importBundle(TagSourceBundle bundle) => importSource(bundle.source, bundle.tags);
+
+  Future<void> removeSource(String id) async {
+    await sources?.remove(id);
+    tagService.refreshSources();
+    _refreshTags();
+  }
+
+  Future<void> setSourceEnabled(String id, bool enabled) async {
+    await sources?.setEnabled(id, enabled);
+    tagService.refreshSources();
+    _refreshTags();
+  }
+
+  Future<void> reorderSources(int oldIndex, int newIndex) async {
+    await sources?.reorder(oldIndex, newIndex);
+    tagService.refreshSources();
+    _refreshTags();
+  }
+
+  Future<void> renameSource(String id, String name) async {
+    await sources?.rename(id, name);
+    notifyListeners();
   }
 }
