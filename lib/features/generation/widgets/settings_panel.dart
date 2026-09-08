@@ -113,7 +113,6 @@ class AdvancedSettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.t;
     return Selector<GenerationNotifier, bool>(
       selector: (_, n) => n.state.isSettingsExpanded,
       builder: (context, isExpanded, _) {
