@@ -35,11 +35,19 @@ class TagSourceBundle {
   final TagSource source;
   final List<DanbooruTag> tags;
 
-  const TagSourceBundle({required this.source, required this.tags});
+  /// Favourites set on this source's tags (lower-cased name → state), so a
+  /// `.vpack` or a per-source export carries them. Example images are local
+  /// files and stay behind. Empty for the on-disk source file itself — there
+  /// the sidecar (`user_tag_state.json`) is the record.
+  final Map<String, TagUserState> userState;
+
+  const TagSourceBundle({required this.source, required this.tags, this.userState = const {}});
 
   Map<String, dynamic> toJson() => {
         'source': source.toJson(),
         'tags': tags.map(_tagToJson).toList(),
+        if (userState.isNotEmpty)
+          'user_state': {for (final e in userState.entries) e.key: e.value.toJson()},
       };
 
   factory TagSourceBundle.fromJson(Map<String, dynamic> json) {
@@ -47,7 +55,16 @@ class TagSourceBundle {
     final tags = (json['tags'] as List<dynamic>? ?? const [])
         .map((e) => DanbooruTag.fromJson(e as Map<String, dynamic>).copyWith(sourceId: () => source.id))
         .toList();
-    return TagSourceBundle(source: source.copyWith(tagCount: tags.length), tags: tags);
+    final state = <String, TagUserState>{};
+    final rawState = json['user_state'];
+    if (rawState is Map) {
+      for (final e in rawState.entries) {
+        if (e.value is Map<String, dynamic>) {
+          state[e.key.toString().toLowerCase()] = TagUserState.fromJson(e.value as Map<String, dynamic>);
+        }
+      }
+    }
+    return TagSourceBundle(source: source.copyWith(tagCount: tags.length), tags: tags, userState: state);
   }
 
   static Map<String, dynamic> _tagToJson(DanbooruTag t) => {
@@ -246,10 +263,32 @@ class TagSourceService {
     await _saveManifest();
   }
 
+  /// The source as a portable bundle: its tags plus the favourites set on
+  /// them (examples are local file paths and are left out).
   TagSourceBundle bundle(String id) {
     final src = byId(id);
     if (src == null) throw StateError('Unknown tag source $id');
-    return TagSourceBundle(source: src, tags: tagsOf(id));
+    final tags = tagsOf(id);
+    final favourites = <String, TagUserState>{};
+    for (final t in tags) {
+      final k = t.tag.toLowerCase();
+      if (_userState[k]?.favorite ?? false) favourites[k] = const TagUserState(favorite: true);
+    }
+    return TagSourceBundle(source: src, tags: tags, userState: favourites);
+  }
+
+  /// Merges favourites carried by an imported bundle into the sidecar. Only
+  /// sets flags (never clears one the user has here) and ignores examples.
+  Future<void> mergeUserState(Map<String, TagUserState> state) async {
+    var changed = false;
+    for (final e in state.entries) {
+      if (!e.value.favorite) continue;
+      final k = e.key.toLowerCase();
+      if (_userState[k]?.favorite ?? false) continue;
+      _userState[k] = (_userState[k] ?? const TagUserState()).copyWith(favorite: true);
+      changed = true;
+    }
+    if (changed) await _saveUserState();
   }
 
   // ── Per-tag user state (imported tags only) ──────────────────────────

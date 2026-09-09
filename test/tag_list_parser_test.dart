@@ -111,7 +111,7 @@ void main() {
 
     test('gzip-compressed input is transparently decoded', () {
       final plain = utf8.encode('1girl,0,10,\nsolo,0,9,\n');
-      final gz = Uint8List.fromList(GZipEncoder().encode(plain)!);
+      final gz = Uint8List.fromList(GZipEncoder().encode(plain));
       final text = TagListParser.decodeBytes(gz);
       expect(TagListParser.sniff(text).rows.length, 2);
     });

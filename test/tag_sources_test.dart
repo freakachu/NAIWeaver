@@ -246,5 +246,34 @@ void main() {
       expect(round.tags.first.aliases, ['canid']);
       expect(round.tags.first.sourceId, 'e621');
     });
+
+    test('a bundle carries favourites (not examples) and import merges them', () async {
+      final dir = p.join(tmp.path, 'sources_fav');
+      final svc = TagSourceService(sourcesDir: dir);
+      await svc.load();
+      await svc.put(_src('e621', name: 'e621'), [_t('canine', 900000, type: 'species'), _t('anthro', 1)]);
+      await svc.setFavorite('Canine', true);
+      await svc.addExample('canine', '/local/only.png');
+
+      final bundle = svc.bundle('e621');
+      expect(bundle.userState.keys, ['canine']);
+      expect(bundle.userState['canine']!.favorite, isTrue);
+      expect(bundle.userState['canine']!.examples, isEmpty);
+
+      final bytes = PackService.exportPack(name: 'p', tagSources: [bundle]);
+      final round = PackService.importPack(bytes).tagSources.single;
+      expect(round.userState['canine']!.favorite, isTrue);
+
+      final other = TagSourceService(sourcesDir: p.join(tmp.path, 'sources_other'));
+      await other.load();
+      await other.put(round.source, round.tags);
+      await other.mergeUserState(round.userState);
+      expect(other.stateFor('canine')!.favorite, isTrue);
+      expect(other.stateFor('anthro'), isNull);
+      // The on-disk source file never carries the state; the sidecar does.
+      final reloaded = TagSourceService(sourcesDir: p.join(tmp.path, 'sources_other'));
+      await reloaded.load();
+      expect(reloaded.stateFor('canine')!.favorite, isTrue);
+    });
   });
 }

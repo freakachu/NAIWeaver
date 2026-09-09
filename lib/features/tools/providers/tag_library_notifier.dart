@@ -355,7 +355,15 @@ class TagLibraryNotifier extends ChangeNotifier {
     _refreshTags();
   }
 
-  Future<void> importBundle(TagSourceBundle bundle) => importSource(bundle.source, bundle.tags);
+  /// Imports a bundle (pack or per-source export): its tags, then the
+  /// favourites it carries into the sidecar.
+  Future<void> importBundle(TagSourceBundle bundle) async {
+    await importSource(bundle.source, bundle.tags);
+    if (bundle.userState.isNotEmpty) {
+      await sources?.mergeUserState(bundle.userState);
+      _refreshTags();
+    }
+  }
 
   Future<void> removeSource(String id) async {
     await sources?.remove(id);
