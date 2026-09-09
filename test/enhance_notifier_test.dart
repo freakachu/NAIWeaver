@@ -164,17 +164,35 @@ void main() {
       expect(n.requestSize, (1280, 1856));
     });
 
-    test('Max predicts the source aspect scaled to the cap, floored to 64', () async {
+    test('Max predicts the source aspect scaled to the cap (not 64-aligned)', () async {
       final n = await _make(model: NaiModel.v5Full, w: 832, h: 1216);
       n.setMaxEnhance(true);
       final (w, h) = n.predictedOutputSize;
-      expect(w % 64, 0);
-      expect(h % 64, 0);
       expect(w * h, lessThanOrEqualTo(naiMaxPixels));
-      expect(w * h, greaterThan(naiMaxPixels * 0.85), reason: 'close to the cap');
-      expect((w / h - 832 / 1216).abs(), lessThan(0.05), reason: 'aspect preserved');
+      expect(w * h, greaterThan(naiMaxPixels * 0.99), reason: 'right at the cap');
+      expect((w / h - 832 / 1216).abs(), lessThan(0.005), reason: 'aspect preserved');
       // The REQUEST keeps the source size; the server does the scaling.
       expect(n.requestSize, (832, 1216));
+    });
+
+    test('Max prediction matches a live run: 896×1152 → 1564×2011', () async {
+      final n = await _make(model: NaiModel.v5Full, w: 896, h: 1152);
+      n.setMaxEnhance(true);
+      expect(n.predictedOutputSize, (1564, 2011));
+    });
+
+    test('Max is 2× when that fits the cap (live: 512×768 → 1024×1536)', () async {
+      final n = await _make(model: NaiModel.v5Full, w: 512, h: 768);
+      n.setMaxEnhance(true);
+      expect(n.predictedOutputSize, (1024, 1536));
+      expect(n.requestSize, (512, 768));
+    });
+
+    test('Max rounds an odd-sized source to multiples of 64 in the request', () async {
+      final n = await _make(model: NaiModel.v5Full, w: 1000, h: 1400);
+      n.setMaxEnhance(true);
+      expect(n.config.maxEnhance, isTrue);
+      expect(n.requestSize, (1024, 1408));
     });
   });
 

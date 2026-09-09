@@ -17,6 +17,17 @@ import 'dart:math' as math;
 const double _areaCoefficient = 2.951823174884865e-6;
 const double _stepAreaCoefficient = 5.753298233447344e-7;
 const int _opusFreeMaxPixels = 1024 * 1024;
+
+/// Multiplier NovelAI applies on top of the strength-scaled img2img price for
+/// Enhance "Max" (`upscaled_enhance: true`), priced at the OUTPUT size.
+///
+/// Fit to four live Opus runs on 2026-09-09 (V5 Full, `k_euler_ancestral`):
+/// 896×1152 → 1564×2011 at 23 steps cost 23 Anlas at strength 0.3 and 45 at
+/// 0.6; at 28 steps / 0.3 it cost 27; 512×768 → 1024×1536 at 23 steps / 0.3
+/// cost 12. Every factor in (1.444, 1.471] reproduces all four exactly; 1.46
+/// is the middle of that band. Max is charged in Anlas even on Opus — the V5
+/// allowance was untouched in all four runs.
+const double naiMaxEnhanceCostFactor = 1.46;
 const int _opusFreeMaxSteps = 28;
 
 /// Anlas per Character Reference ("precise" director reference) per image.

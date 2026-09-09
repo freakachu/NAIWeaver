@@ -98,16 +98,23 @@ class EnhanceNotifier extends ChangeNotifier {
         ((_sourceHeight * scale) / 64).round() * 64,
       );
 
-  /// What Max is expected to return: the source aspect scaled to the pixel
-  /// cap, floored to multiples of 64 so the prediction never exceeds it. The
-  /// server decides the real size; this is a preview.
+  /// What Max returns, per live runs on 2026-09-09: **2× the sent size**
+  /// when that fits the 3,145,728 px cap (512×768 → 1024×1536), otherwise the
+  /// sent aspect scaled to the cap (896×1152 → 1564×2011). The server does
+  /// not align the capped size to 64, so this rounds to the pixel and only
+  /// nudges down when rounding would overshoot the cap.
   (int, int) get predictedMaxSize {
     if (_sourceWidth <= 0 || _sourceHeight <= 0) return (0, 0);
-    final k = math.sqrt(naiMaxPixels / (_sourceWidth * _sourceHeight));
-    return (
-      math.max(64, ((_sourceWidth * k) / 64).floor() * 64),
-      math.max(64, ((_sourceHeight * k) / 64).floor() * 64),
-    );
+    final (sw, sh) = _scaledSize(1.0); // what is actually sent
+    if (4 * sw * sh <= naiMaxPixels) return (2 * sw, 2 * sh);
+    final k = math.sqrt(naiMaxPixels / (sw * sh));
+    var w = math.max(1, (sw * k).round());
+    var h = math.max(1, (sh * k).round());
+    if (w * h > naiMaxPixels) {
+      w = math.max(1, (sw * k).floor());
+      h = math.max(1, (sh * k).floor());
+    }
+    return (w, h);
   }
 
   /// Dimensions of the image Enhance will produce with the current config.
@@ -115,13 +122,16 @@ class EnhanceNotifier extends ChangeNotifier {
       _config.maxEnhance ? predictedMaxSize : _scaledSize(_config.scale);
 
   /// Dimensions sent in the request. Max keeps the SOURCE size (the server
-  /// scales); numeric scales send the scaled size.
+  /// scales) — rounded to multiples of 64 like every other NovelAI request,
+  /// so an odd-sized import (1000×1400) goes out as 1024×1408; numeric scales
+  /// send the scaled size.
   (int, int) get requestSize =>
-      _config.maxEnhance ? (_sourceWidth, _sourceHeight) : _scaledSize(_config.scale);
+      _config.maxEnhance ? _scaledSize(1.0) : _scaledSize(_config.scale);
 
   /// Anlas estimate for the next Enhance, priced at the OUTPUT pixel count.
-  /// NovelAI has not published what Max costs, so a ~3.1 MP output is priced
-  /// as an ordinary img2img of that size — an upper-bound guess.
+  /// Max costs the ordinary img2img price of its output size times
+  /// [naiMaxEnhanceCostFactor] (fit to live runs — see the constant); it is
+  /// charged in Anlas even on Opus.
   NaiImageCostEstimate estimateCost({required bool isOpus}) {
     final (w, h) = predictedOutputSize;
     return estimateNaiImageCost(
@@ -132,7 +142,9 @@ class EnhanceNotifier extends ChangeNotifier {
       smeaDyn: false,
       isOpus: isOpus,
       hasImageInput: true,
-      strengthFactor: _config.strength,
+      strengthFactor: _config.maxEnhance
+          ? _config.strength * naiMaxEnhanceCostFactor
+          : _config.strength,
     );
   }
 
@@ -232,8 +244,9 @@ class EnhanceNotifier extends ChangeNotifier {
       ));
 
       // Step 2: Generate enhanced image via img2img. A numeric scale sends
-      // the scaled size (rounded to 64); Max sends the SOURCE size plus
-      // `upscaled_enhance: true` and lets the server scale to the cap.
+      // the scaled size (rounded to 64); Max sends the SOURCE size (also
+      // rounded to 64) plus `upscaled_enhance: true` and lets the server
+      // scale to the cap.
       final (outWidth, outHeight) = requestSize;
 
       final effectiveNegative = _styleNegativeContent != null && _styleNegativeContent!.isNotEmpty
