@@ -100,3 +100,6 @@ EXAMPLEINPAINTED.png
 
 # Wiki preprocessing artifacts (downloaded; rebuilt by Tags/build_wiki_asset.py)
 Tags/_wiki_raw/
+
+# Windows shell shortcuts accidentally dropped in the project folder
+*.lnk

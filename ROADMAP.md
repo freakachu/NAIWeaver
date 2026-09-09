@@ -129,12 +129,34 @@
 - Mobile device gallery export with auto-export and custom album naming
 - REF button popup menu for quick-loading saved references
 - Saved director refs and vibe transfers in `.vpack` pack format
-- Keyboard shortcuts: Ctrl+Enter generate, Ctrl+Arrow cycle styles
+- Keyboard shortcuts: Ctrl+Enter generate, Alt+Left/Right cycle styles
 - Style reset to defaults
 - API key backup fallback and biometric enrollment check
 - Gallery grey screen fix, pack import fix for Android/Web
 - Centralized file picker helper for cross-platform compatibility
 - Full EN, JA, ZH localization
+
+### Phase 11: Characters, Auto-Updater, Android Storage & NovelAI V5 (v0.9.0 – v0.9.3)
+- Characters & Wardrobe: saved personas with appearance buckets, closets, AI character/wardrobe generation, photoshoot mode
+- Text Generation tool (NovelAI text models, streaming, reasoning mode)
+- In-app auto-updater (Android & Windows) pinned to the official GitHub release with SHA-256 verification
+- Android: SD-card library move, draggable gallery scrollbar, album strip long-press model, mouse-wheel line scrolling
+- Custom filename & save-subfolder patterns with wildcards; recursive gallery scan
+- Canvas: real selections, flood fill, working Move tool and eyedropper; pinch-zoom and wheel zoom fixes
+- NovelAI Diffusion V5: model picker + capability layer, free character positioning (32), native transparency, auto-Text, Opus usage battery, noise schedule / guidance rescale / Variety+
+- PNG metadata actually written / stripped; NAIWeaver's own record rides in its own chunk
+- Web: image imports work; filesystem-only paths gated off
+- Tools Hub expanded from 14 to 16 tools
+
+### Phase 12: Tag Sources, Model-Aware Styles & Enhance Max (v0.9.4)
+- Import your own Danbooru / e621 tag lists (CSV, JSON, text, gzipped) as separate, switchable tag sources with category-numbering profiles; species / lore / contributor categories
+- Autocomplete on a sorted-name prefix index (binary search)
+- Styles target V4.5 and/or V5; Save changes / Save as new in the Style Editor (rename no longer duplicates)
+- Steps and CFG remembered per model, with an optional per-style override
+- Enhance "Max" on V5 (`upscaled_enhance`) and NovelAI's 2× / 1.5× / 1× scale rule
+- Gallery viewer: pin the controls; top-centre "Copied" toast
+- Save-subfolder pattern applies to SD-card / picked-folder exports on Android (generation-side)
+- Mobile pinch-zoom dead zone on the main screen fixed
 
 ## Architecture
 - **Language/Framework**: Dart 3.10.7+ / Flutter (stable channel)
@@ -161,9 +183,16 @@ Support for NovelAI's native vibe file formats:
 
 This enables sharing vibes without re-encoding costs and interoperability with other NovelAI tools. Import/export will be available through the Vibe Transfer manager and the Packs system.
 
-## Known Issues / Planned for v0.9.0
+## Known Issues / Planned for v0.9.5
 
-*No known issues at this time. See [Community Wishlist](#community-wishlist) for planned features.*
+Carried out of v0.9.4 (none are crashes):
+- Enhance "Max" pricing is a fit to four live samples (output-size img2img price × strength × 1.46, exact on all four); NovelAI publishes no price table, so it may drift.
+- The mobile pinch-zoom fix on the main screen is not yet verified on a device.
+- Example images set on imported tags are local files and do not travel in `.vpack` backups (favourites do).
+- Cascade beats and presets that name a style are not followed when that style is renamed (the generator's active list is).
+- Open from #37: escaped parentheses in suggestions, a dismiss button for autocomplete, mid-prompt autocomplete in character boxes.
+
+See [Community Wishlist](#community-wishlist) for planned features.
 
 ## Community Wishlist
 
@@ -171,7 +200,7 @@ Have an idea? Feature requests are welcome — please open a [GitHub Issue](../.
 
 - **Prompt history with undo/redo**: Navigate recent prompts with back/forward controls
 - **Batch generation**: Queue N generations with seed increment or wildcard variance
-- ~~**Keyboard shortcuts**: Hotkeys for common actions (generate, randomize seed, toggle settings)~~ *(Done — Ctrl+Enter generate, Ctrl+Arrow cycle styles in Phase 10)*
+- ~~**Keyboard shortcuts**: Hotkeys for common actions (generate, randomize seed, toggle settings)~~ *(Done — Ctrl+Enter generate, Alt+Left/Right cycle styles in Phase 10)*
 - **Prompt weight visualization**: Highlight tags with `{}` or `[]` weighting inline in the prompt field
 - ~~**Resolution presets**: Named resolution presets per use-case~~ *(Done — custom resolution dialog with save-for-reuse in Phase 6)*
 - **Cloud sync**: Sync presets, wildcards, and styles across devices

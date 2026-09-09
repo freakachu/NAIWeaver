@@ -1,7 +1,7 @@
 # NovelAI Diffusion V5 — research + integration plan for NAIWeaver
 
 **Date:** 2026-08-21 (V5 shipped the same day)
-**Status:** S1–S6 + S8 **implemented** (v0.9.3, 2026-08-21) — see "Implementation status" at the end. This doc remains the spec / source-of-truth for the capability table.
+**Status:** S1–S8 **implemented** — S1–S6 + S8 in v0.9.3 (2026-08-21), S7's Enhance "Max" in v0.9.4 (2026-09-07; streaming / webp remain deferred) — see "Implementation status" at the end. This doc remains the spec / source-of-truth for the capability table.
 **Sibling:** `D:\bri\docs\image\NOVELAI_V5_RESEARCH_AND_PLAN_2026_08_21.md` (the Python app's
 V5 pass, incl. a live Opus smoke run) and `D:\bri\app\image_gen\nai_models.py` (its model registry).
 
@@ -305,7 +305,7 @@ From the repo survey (file:line):
 ## 5. Plan
 
 Build order: **S1 → S2 → S3** ship together (model picker + gating + usage awareness is the minimum safe V5
-release); S4–S6 are the V5-native wins; S7–S8 when convenient. Keep V4.5 behaviour byte-identical for existing users.
+release); S4–S6 are the V5-native wins; S7–S8 when convenient (S7's Max half landed in v0.9.4; streaming / webp still pending). Keep V4.5 behaviour byte-identical for existing users.
 
 ### S1. `NaiModel` enum + capability layer (the chokepoint)
 
@@ -421,7 +421,7 @@ user's tuned steps/scale on model switch.
 ### S7. Later: Enhance "Max", streaming, webp
 
 - Enhance panel: add "Max" when `caps.maxEnhance && w*h < 2,516,582` → `upscaled_enhance: true` at source dims
-  (result ≈ 3.1 MP). Whether it draws battery or Anlas is `[UNVERIFIED]`. **Built 2026-09-07** (see the status
+  (result ≈ 3.1 MP). Draws **Anlas**, not the battery — verified live 2026-09-09 (4 Opus runs, allowance unchanged); result is 2× or cap-scaled, priced at output size × strength × 1.46. **Built 2026-09-07** (see the status
   table); the request shape has not been sent to the live API yet.
 - `/ai/generate-image-stream` (`stream: "sse"`) for a live preview — nice-to-have.
 - `image_format: webp` — skip (metadata/alpha pipeline assumes PNG).
@@ -442,8 +442,8 @@ user's tuned steps/scale on model switch.
    Anlas fetch should use (and that `usage` only comes from `image.`).
 2. Does V5 **reject** or ignore `reference_image_multiple*` / `director_reference_*`? (we plan to not send them either way)
 3. `nai-diffusion-5-curated-inpainting` — live yet? (UI still maps to V4.5 Curated inpaint.)
-4. Exact Anlas per V5 image when paying (formula vs the day-one 11/26/39 observations).
-5. Whether Enhance / upscale draw from the battery.
+4. Exact Anlas per V5 image when paying (formula vs the day-one 11/26/39 observations). `nai_cost_estimator.dart` (v0.9.3) mirrors the frontend formula and is surfaced in the Enhance panel since v0.9.4; Max is estimated at the output pixel count.
+5. ~~Whether Enhance / upscale draw from the battery.~~ Enhance Max draws **Anlas** (live 2026-09-09: four runs, V5 allowance unchanged; 23 / 27 / 45 / 12 Anlas — see API_DOCUMENTATION).
 6. V5 Curated `rating:general` behaviour / whether a Curated quality suffix differs (bundle says same as Full).
 7. Token budget (1471/703) for our token counter.
 
@@ -459,7 +459,7 @@ note.com day-one reports (itsuki_ailab, tank_ai, aiillust000).
 
 ---
 
-## 8. Implementation status (v0.9.3, 2026-08-21)
+## 8. Implementation status (v0.9.3, 2026-08-21 · S7 Max in v0.9.4, 2026-09-07)
 
 | step | status | where |
 |---|---|---|
@@ -469,12 +469,12 @@ note.com day-one reports (itsuki_ailab, tank_ai, aiillust000).
 | S4 transparency | **done** (viewer + request); img2img source flatten-onto-transparent **not** done | TRANSPARENT BG toggle, `straight_alpha` + tag hint, `pngHasAlpha` + `CheckerboardPainter` in the viewer. Save path already injects metadata without re-encoding, so RGBA survives. |
 | S5 positioning | **done** | `NaiGridSelector(freeform:, aspectRatio:)` — free-drag on V5 (3 dp), grid on V4.5; cap 32/6 with an "only the first N are sent" note (no destructive trimming) |
 | S6 prompt features | **done** | `applyAutoText` (V5 only), V5 tags merged into autocomplete (`TagService.naiV5Tags`), V5 quality/UC styles in `prompt_styles.json`; `k_dpmpp_2m_sde` sampler |
-| S7 Enhance Max / streaming / webp | **Max done** (wire format `[UNVERIFIED]` against the live API); streaming / webp deferred | `EnhanceConfig.maxEnhance`, MAX ✨ chip in `enhance_editor.dart` (shown when `naiMaxEnhanceAvailable`), request at source dims + `upscaled_enhance: true` via `buildNaiGenerateBody(upscaledEnhance:)` (stripped on V4.5); numeric scales computed from the `[2, 1.5, 1]` rule; cost estimated at the OUTPUT pixel count (pricing unknown) |
-| S8 tests + docs | **done** | `test/nai_model_test.dart`, `test/nai_request_builder_test.dart`, `test/nai_v5_persistence_test.dart` (51 tests); README / FEATURES / ARCHITECTURE / API_DOCUMENTATION / CHANGELOG |
+| S7 Enhance Max / streaming / webp | **Max done and verified live (2026-09-09)**; streaming / webp deferred | `EnhanceConfig.maxEnhance`, MAX ✨ chip in `enhance_editor.dart` (shown when `naiMaxEnhanceAvailable`), request at source dims + `upscaled_enhance: true` via `buildNaiGenerateBody(upscaledEnhance:)` (stripped on V4.5); numeric scales computed from the `[2, 1.5, 1]` rule; result = 2× the sent size or the sent aspect scaled to the cap; cost = output-size img2img price × strength × `naiMaxEnhanceCostFactor` (1.46, fit to 4 live runs; Anlas even on Opus) |
+| S8 tests + docs | **done** | `test/nai_model_test.dart`, `test/nai_request_builder_test.dart`, `test/nai_v5_persistence_test.dart` (51 V5-specific tests; v0.9.4 adds `test/enhance_notifier_test.dart`, `test/model_settings_memory_test.dart`, `test/prompt_style_models_test.dart`, `test/style_notifier_test.dart` — full suite 652 tests); README / FEATURES / ARCHITECTURE / API_DOCUMENTATION / CHANGELOG |
 
 Decisions taken where the plan left room:
 - `params_version`: 3 for V4.5 (byte-identical bodies), 4 for V5 (what the frontend sends).
 - `deliberate_euler_ancestral_bug:false` + `prefer_brownian:true` are sent on V5 only (frontend parity for the new model; V4.5 untouched).
 - `straight_alpha` is only sent when the Transparent BG toggle is on (conservative; the frontend sends it on every V5 request).
 - Over-cap characters are not trimmed on a model switch — the builder sends the first N and the editor says so.
-- Open items in §6 remain open (Anlas-per-image numbers, Enhance battery draw, V5 Curated inpaint id).
+- Open items in §6 remain open (Anlas-per-image numbers for plain V5 renders, V5 Curated inpaint id; Enhance Max's Anlas draw is now measured).

@@ -19,12 +19,13 @@ Thanks for your interest in contributing! Here's how to get started.
 - ML processing code goes in `lib/core/ml/`
 - Tools Hub features go in `lib/features/tools/{tool_name}/` (e.g., `director_tools/`, `enhance/`, `ml/`)
 - Shared utilities go in `lib/core/` (services, utils, widgets)
+- Tests live in `test/`; pure services (request builder, tag-list parser, filename patterns, SAF subfolder helpers) get unit tests, widgets get `flutter_test` widget tests
 
 ## Pull Request Process
 
 1. Fork the repository and create a branch from `master`
 2. Make your changes with clear, focused commits
-3. Ensure `flutter analyze` passes with no new issues
+3. Ensure `flutter analyze` passes with no new issues and `flutter test` is green
 4. Update documentation if adding new features
 5. Open a PR with a clear description of what changed and why
 

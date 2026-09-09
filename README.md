@@ -24,6 +24,9 @@ Check out the github page to test it out, https://ststoryweaver.github.io/NAIWea
 - Duplicate generation detection with warning snackbar and quick randomize action
 - Widescreen sidebar layout mode for ultrawide and multi-monitor setups
 - Keyboard shortcuts: Ctrl+Enter to generate, Alt+Left/Right to cycle styles, Ctrl+Up/Down to adjust tag weight, canvas tool shortcuts
+- Steps and CFG are remembered per model family (V4.5 / V5), and a style can carry its own steps/CFG override that applies while it is selected
+- Prompt styles declare which model family they work with (V4.5, V5 or both); the STYLES panel, cascade beats and style cycling only offer styles made for the active model
+- Custom filename and save-subfolder patterns (`<prompt>`, `<seed>`, `<album>`, date/time tokens, `<digits>` counters) with a live preview — subfolders are created under the output folder and under a custom export folder, including an SD card / picked folder on Android
 
 ### Director Reference
 Upload reference images to guide character appearance or artistic style. Supports three reference types (Character, Style, Character & Style) with per-reference strength and fidelity sliders. The REF button provides quick access to saved references via a popup menu for instant loading.
@@ -51,7 +54,8 @@ A NovelAI text-model tool with a continue-style multiline input, model picker, f
 - Emotion supports 24 mood presets; Colorize supports defry and prompt input
 
 ### Enhance
-- Quick img2img refinement with strength, noise, and scale controls
+- Quick img2img refinement with strength, noise, and scale controls; the scale chips follow NovelAI's 2× / 1.5× / 1× rule
+- On V5, a **MAX ✨** option sends the source at its own size with `upscaled_enhance` and returns it at 2× (or scaled to ~3.1 MP when 2× would exceed NovelAI's cap), with a predicted output size and an Anlas estimate fit to live runs (Max costs Anlas even on Opus)
 
 ### Quick Action Overlay
 - Floating action buttons on generated images (Save, Edit, Remove BG, Upscale, Enhance, Director Tools, Export to Device)
@@ -59,6 +63,7 @@ A NovelAI text-model tool with a continue-style multiline input, model picker, f
 
 ### Gallery
 - Full-screen image detail view with swipe navigation, zoom, and metadata display (grey screen bug fixed)
+- Pin button in the viewer's top bar keeps the controls on screen instead of auto-hiding them; the choice is remembered across sessions and backups
 - Bottom action bar with integrated ML, Director Tools, Enhance, and reference actions
 - Gallery import preserves original creation dates from EXIF metadata
 - Favorites, search, multi-select with drag-to-select
@@ -73,21 +78,21 @@ A NovelAI text-model tool with a continue-style multiline input, model picker, f
 | Tool | Description |
 |---|---|
 | **Wildcard Manager** | Browse, create, edit, and delete wildcard files (`__pattern__` substitution) with favorites |
-| **Tag Library** | Danbooru tag auto-complete with visual examples and inline preview generation |
+| **Tag Library** | Danbooru tag auto-complete with visual examples and inline preview generation, plus a *Tag lists* button to import your own Danbooru / e621 CSV, JSON or plain-text tag lists as separate, toggleable, reorderable sources |
 | **Preset Manager** | Full preset editor with characters, interactions, and reference management |
-| **Style Editor** | Prompt style templates with prefix, suffix, and negative content |
+| **Style Editor** | Prompt style templates with prefix, suffix, and negative content; *Works with* V4.5 / V5 targeting, optional per-style steps/CFG, and Save changes / Save as new |
 | **Reference Manager** | Director Reference management with type, strength, and fidelity controls |
 | **Characters** | Saved-persona library with appearance buckets, per-character closets, outfit dressing-state, AI character/wardrobe generation, and photoshoot mode |
 | **Cascade Editor** | Multi-beat sequential scene generation with character slots and prompt stitching |
 | **Img2Img Editor** | Source image loading, canvas editor, custom resolutions, brush-based mask painting with customizable mask color, opacity, and patterns, and inpainting |
 | **Director Tools** | 6 server-side image augmentation tools (Remove BG, Line Art, Sketch, Colorize, Emotion, Declutter) |
-| **Enhance** | Quick img2img refinement with strength, noise, and scale controls |
+| **Enhance** | Quick img2img refinement with strength, noise, and scale controls; MAX ✨ on V5 for a ~3.1 MP result |
 | **Slideshow** | Configurable image slideshow with transitions and Ken Burns effect from gallery or album sources |
 | **ML Models** | Download and manage on-device ML models for BG removal, upscaling, and segmentation |
 | **Text Gen** | NovelAI text-model generation with streaming output, parameter controls, reasoning mode, and local history |
-| **Packs** | Export/import presets, styles, wildcards, director refs, saved references, vibe transfers, characters, themes, gallery albums, and settings as `.vpack` files |
+| **Packs** | Export/import presets, styles, wildcards, director refs, saved references, vibe transfers, characters, themes, gallery albums, imported tag lists, and settings as `.vpack` files |
 | **Theme Builder** | 8 built-in themes + full custom theme editor with 17 configurable colors |
-| **Settings** | API key, auto-save, shelf visibility, quick action buttons, upscale backend, tooltips, locale, layout mode (widescreen sidebar), device/SD-card export, and sidebar options |
+| **Settings** | API key, auto-save, shelf visibility, quick action buttons, upscale backend, tooltips, locale, layout mode (widescreen sidebar), device/SD-card export, filename and save-subfolder patterns, and sidebar options |
 
 ### Localization
 English, Japanese, and Simplified Chinese out of the box. Extensible via `.arb` files — see [Contributing](#localization-1) for adding new languages.
@@ -179,7 +184,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed breakdown.
 
 ## NAIWeaver Packs
 
-Share your presets, styles, wildcards, and director references with others using `.vpack` files:
+Share your presets, styles, wildcards, director references, characters, themes, albums and imported tag lists with others using `.vpack` files:
 
 - **Export**: TOOLS > PACKS > Export Pack — select items, name your pack, save as `.vpack`
 - **Import**: TOOLS > PACKS > Import Pack — open a `.vpack`, preview contents, import selected items

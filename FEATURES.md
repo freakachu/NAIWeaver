@@ -5,10 +5,12 @@
 - **Model Picker + Capability Layer**: V5 Full · V5 Curated · V4.5 Full · V4.5 Curated. Per-model capabilities (`NaiModel`/`NaiCaps`) gate the UI (Vibe Transfer / Character Reference greyed on V5 with a tooltip) and sanitise the request (V5: karras forced, no SMEA, raw coordinates, `params_version` 4; V4.5 unchanged). "DEFAULTS" resets steps/scale/sampler to NovelAI's per-model defaults
 - **V5 Extras**: free-drag character positioning (32 characters), TRANSPARENT BG toggle (RGBA output over a checkerboard), auto-`Text:` from quoted strings, V5 tags in autocomplete, V5 quality/UC style presets
 - **Opus V5 Usage Battery**: Anlas chip shows the V5 allowance (% / ~images left, warning colour when low) and the MODEL section shows a pre-flight FREE / V5 ALLOWANCE / COSTS ANLAS label
+- **Per-Model Steps and CFG Memory**: Switching between V4.5 and V5 restores the steps / guidance last used on each family (kept in the session snapshot and in backups as `model_render_settings`, so it survives with *Remember session* off). A style can carry its own steps/CFG override that applies while it is selected and hands back the per-model values when it is deselected
 - **Img2Img / Inpainting**: Source image transformation with strength/noise controls, client-side mask compositing for selective inpainting, canvas editor integration, mask save/load (export to PNG, load pre-painted masks), img2img presets (save/load/delete named settings), and mask customization (adjustable mask color, opacity, and overlay patterns with zoom/pan support)
 - **Img2Img Iterative Workflow**: "Use Result as Source" button to feed the current generation back as the img2img source for iterative refinement
 - **Img2Img Prompt Auto-Import**: Automatically extract and apply prompt from PNG metadata (tEXt + iTXt chunks) when loading a source image
 - **Custom Output Folder**: Configurable output directory for desktop platforms (Windows, Linux)
+- **Custom Filename & Save-Subfolder Patterns**: `<prompt>`, `<seed>`, `<album:fallback>`, zero-padded date/time tokens and `<digits:0000>` per-folder counters with a live preview. Subfolders are auto-created under the output folder, under a custom export folder, and (Android) under a Storage Access Framework picked folder / SD card, where `<digits>` counts per subfolder too. The device-gallery album export is flat by design
 - **Multi-Character Generation**: Up to 6 characters (V4.5) / 32 (V5) with independent prompts, negative prompts, and pixel-coordinate positioning via `char_captions` and `use_coords`
 - **Character Interactions**: Typed interaction tags (`source#action`, `target#action`, `mutual#action`) automatically injected into character captions, with multi-participant support (multiple source/target characters per interaction)
 - **Expanded Character Editor**: Inline character editor in the settings panel with per-character tag suggestions, UC editing, position grid, and character presets — alternative to the compact shelf
@@ -27,7 +29,9 @@
 - **Syntax Highlighting**: NAI prompt syntax highlighting for `{emphasis}`, `[de-emphasis]`, and `N::strength` patterns
 - **Keyboard Tag Navigation**: Tab/Shift+Tab to cycle through tag suggestions, Enter to accept
 - **Strength Prefix Suggestions**: Tag suggestions work inside strength prefixes (e.g. `2::1gi`)
-- **Danbooru Tag Library**: 300+ post-count tag database with intelligent auto-suggest and auto-completion as you type
+- **Danbooru Tag Library**: Bundled high-frequency Danbooru tag database with intelligent auto-suggest and auto-completion as you type, backed by a sorted-name prefix index (binary search) so even a large imported list stays responsive; substring and alias passes only run when the prefix pass hasn't filled the list
+- **Imported Tag Lists (Tag Sources)**: Tag Library → *Tag lists* imports a1111-tagcomplete style CSV, header CSV in any column order (including e621's `db_export` dump, gzipped or not), a JSON array/map, or one-tag-per-line text. The importer sniffs the shape, lets you fix the column mapping, and asks which **category numbering** the file uses (Danbooru / e621 / merged / custom, with an auto-guess). Pick a minimum post count, which categories to keep, and whether underscores become spaces. Each list is stored separately from the bundled data and can be toggled, reordered (priority on name collisions; the bundled list always wins and absorbs extra aliases), renamed, updated from a newer file, exported or deleted. Suggestions from an imported list carry a source badge; favourites and example images set on imported tags live in a sidecar that survives re-import; imported lists ride along in `.vpack` backups
+- **Species / Lore / Contributor Categories**: New tag categories with their own colours, plus `/fs` and `/fl` favourites shortcuts
 - **Tag Library Visual Examples**: Generate and save example images per tag with thumbnail previews for quick visual reference
 - **Tag Library Preview Settings**: Customizable generation parameters for tag test generations
 - **Wildcard System**: `__pattern__` syntax replaced with random lines from corresponding wildcard files, supports recursive expansion up to 5 levels and dot syntax in filenames
@@ -36,25 +40,27 @@
 - **Wildcard Drag-to-Reorder**: Persistent custom ordering for the wildcard file list via drag-to-reorder
 - **Prompt Styles**: Reusable prefix/suffix/negative templates that wrap around your prompt. Multiple styles can be active simultaneously.
 - **Style Defaults**: Mark styles as auto-selected on application launch
+- **Style Model Targeting**: Each style declares *Works with* V4.5 and/or V5 (both by default; list rows show a badge). The STYLES panel, cascade beats and Alt+Left/Right cycling only offer styles made for the active model, with an "N styles hidden" hint; switching models swaps an active style made only for the other family for that family's default. Older style files, packs and imports load as "both"
+- **Style Save / Save As New**: The Style Editor overwrites a renamed style in place (*Save changes*) or makes a copy (*Save as new*, auto-suffixed " (Copy)" when the name is taken)
 - **Style Reordering**: Drag-to-reorder active styles with expandable style chips layout
 - **Artist Tag Category**: `artist:` prefix filtering in tag autocomplete for targeted artist searches
 - **Tag Alias System**: Type in Japanese, Korean, Chinese, or other languages and see alias-matched tag suggestions displayed as `alias → english_tag`, with automatic resolution to English Danbooru tags at generation time
 - **CJK-Aware Search**: Minimum query length of 1 character for CJK scripts across all tag suggestion fields
 - **Weight Syntax Preservation**: Aliased tags preserve weight syntax (e.g. `{女の子}` → `{1girl}`)
 
-## Tools Hub (14 Tools)
+## Tools Hub (16 Tools)
 - **Wildcard Manager**: Browse, create, edit, and delete wildcard files with live preview, favorites, per-file randomization modes, and drag-to-reorder
-- **Tag Library Manager**: Search, browse, favorite, and preview tags with inline image generation and visual examples
+- **Tag Library Manager**: Search, browse, favorite, and preview tags with inline image generation and visual examples, plus a *Tag lists* button for importing and managing your own tag sources
 - **Preset Manager**: Full preset editor with inline sliders, character/interaction editing, and reference management
-- **Style Editor**: Create and edit prompt style templates with prefix, suffix, and negative content
+- **Style Editor**: Create and edit prompt style templates with prefix, suffix, and negative content, *Works with* model targeting, and an optional per-style steps/CFG override
 - **Reference Manager**: Add, configure, and manage Director Reference images with type/strength/fidelity controls
 - **Cascade Editor**: Multi-beat sequential scene generation with character slots, environment tags, prompt stitching, custom resolutions per beat, and Cast button for quick save-and-return
 - **Img2Img Editor**: Source image loading, multi-layer canvas editor integration, blank canvas option with custom resolutions, brush-based mask painting, strength/noise controls, client-side inpainting
 - **Director Tools**: 6 server-side image augmentation tools (Remove BG, Line Art, Sketch, Colorize, Emotion, Declutter) via NovelAI's augment-image API
-- **Enhance**: Quick img2img refinement with strength, noise, and scale controls — accessible from Tools Hub, image viewer, and gallery detail view
+- **Enhance**: Quick img2img refinement with strength, noise, and scale controls (plus MAX ✨ on V5) — accessible from Tools Hub, image viewer, and gallery detail view
 - **ML Models**: Download and manage on-device ML models for background removal, upscaling, and segmentation with device capability detection
 - **Slideshow**: Configurable image slideshow player with transition timing, Ken Burns (pan/zoom) effect, and source selection from gallery or specific albums
-- **Packs**: Export and import NAIWeaver Packs (`.vpack` files) containing presets, styles, wildcards, and director reference images as portable ZIP archives
+- **Packs**: Export and import NAIWeaver Packs (`.vpack` files) containing presets, styles, wildcards, director reference images, characters, themes, albums, imported tag lists and settings as portable ZIP archives
 - **Theme Builder**: Full theme customization with 8 built-in themes, custom user themes, color picker, font selector, text scale slider, bright mode toggle, and live preview
 - **Settings**: API key management, auto-save toggle, shelf visibility, quick action button toggles, upscale backend (ML Local vs NovelAI API), tooltip visibility, character editor mode, custom output folder (desktop), locale selection, layout mode (widescreen sidebar), device export options, and sidebar configuration
 
@@ -105,7 +111,7 @@
 
 ## Gallery
 - **Image Vault**: Browse all generated images with search and filtering
-- **Full-Screen Detail View**: PageView swipe navigation with keyboard support, per-page zoom with double-tap (2.5x) and pinch-to-zoom, auto-hiding controls with tap/hover to reveal (grey screen rendering bug fixed)
+- **Full-Screen Detail View**: PageView swipe navigation with keyboard support, per-page zoom with double-tap (2.5x) and pinch-to-zoom, auto-hiding controls with tap/hover to reveal and a pin button that keeps the overlays on screen (remembered across sessions and backups) (grey screen rendering bug fixed)
 - **Detail View Action Bar**: Bottom action bar with Prompt Import, Img2Img, Enhance, Director Tools, Remove BG, Upscale, NAI Upscale, Char Ref, Vibe, and Slideshow actions
 - **Metadata Display**: Prompt text, resolution, scale, steps, sampler, and seed shown as chips in the detail view
 - **Post-Processing Badge Detection**: Filename prefix-based badges for processed images
@@ -179,7 +185,8 @@
 ## UI / UX
 - **Dark Theme (Default)**: High-contrast black (#000000) background with off-white (#FAFAFA) text, JetBrains Mono font
 - **Collapsible Settings Panel**: Slide-up advanced settings panel with grabber handle
-- **Interactive Image Viewer**: Pinch-to-zoom with `InteractiveViewer`, loading pulse animation, drag-drop overlay
+- **Interactive Image Viewer**: Pinch-to-zoom with `InteractiveViewer` (the whole preview box takes pointers, including the letterbox bands), loading pulse animation, drag-drop overlay
+- **Top-Centre Toasts**: Short confirmations such as "Copied to clipboard" appear as a toast at the top of the screen so they never cover a bottom action bar
 - **Character Shelf**: Horizontal scrollable shelf for quick character management on the main screen (compact mode); alternative expanded inline editor available in the settings panel
 - **Director Reference Shelf**: Horizontal shelf with type-colored chips for reference images (toggleable via Settings)
 - **Vibe Transfer Shelf**: Horizontal shelf with green-accented chips for vibe references (toggleable via Settings)
@@ -208,7 +215,8 @@
 - **Multi-Access Points**: Accessible from Tools Hub, image viewer quick actions, and gallery detail view action bar
 
 ## Enhance
-- **Quick Img2Img Refinement**: One-tap image enhancement with configurable strength, noise, and scale controls
+- **Quick Img2Img Refinement**: One-tap image enhancement with configurable strength, noise, and scale controls; the numeric scale chips follow NovelAI's 2× / 1.5× / 1× rule filtered by the 3,145,728 px cap
+- **Enhance "Max" (V5)**: A MAX ✨ chip (offered when the source is below 0.8 × the pixel cap) sends the source at its own size (64-rounded) with `upscaled_enhance: true` and gets it back at 2× — or the source aspect scaled to the 3,145,728 px cap when 2× would exceed it; the dimension line shows the predicted size. Verified live on 2026-09-09: Max is charged in Anlas even on Opus (output-size img2img price × strength × ~1.46), and the Anlas figure uses that fit
 - **Multi-Access Points**: Accessible from Tools Hub, image viewer quick actions, and gallery detail view action bar
 
 ## Quick Action Overlay
@@ -218,7 +226,7 @@
 
 ## Keyboard Shortcuts
 - **Ctrl+Enter**: Generate image from any focused field without clicking the Generate button
-- **Ctrl+Arrow**: Cycle through active prompt styles with Ctrl+Left/Right arrow keys
+- **Alt+Arrow**: Cycle through prompt styles made for the active model with Alt+Left/Right arrow keys
 - **Canvas Tool Shortcuts**: Single-key shortcuts for switching between paint, erase, select, lasso, blur, clone stamp, and other canvas tools
 
 ## NovelAI API Upscaling
@@ -226,8 +234,7 @@
 - **Backend Toggle**: Configurable upscale backend selection (ML Local vs NovelAI API) in Settings
 
 ## Post-Processing
-- **SMEA / SMEA DYN**: Toggleable SMEA post-processing
-- **Decrisper**: Dynamic thresholding toggle for sharper outputs
+- **SMEA / SMEA DYN / Decrisper**: Removed — no V4+ model supports them; presets that still carry the flags show a note instead
 - **On-Device Upscaling**: Local ML-powered 2x upscaling (see On-Device ML Processing)
 - **NovelAI API Upscaling**: Server-side 4x upscaling (see NovelAI API Upscaling)
 - **Background Removal**: On-device BG removal with multiple model options (see On-Device ML Processing)

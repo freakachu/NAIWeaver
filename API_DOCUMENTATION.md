@@ -33,6 +33,7 @@ The app keeps a per-model capability table in `lib/core/models/nai_model.dart` (
 | `straight_alpha` / `tag_hint_transparent_background` | — | `true` when Transparent BG is on (RGBA PNG result) |
 | `ddim` sampler | — | remapped to `k_euler_ancestral` |
 | auto `Text:` block | — | quoted `"…"` / `「…」` in the prompt appended as `\nText: …` |
+| `upscaled_enhance` (Enhance "Max") | — | `true` on an `img2img` request sent at the source's own (64-rounded) dimensions; the result comes back at 2×, or scaled to the 3,145,728 px cap when 2× would exceed it |
 
 `GET https://image.novelai.net/user/subscription` (bearer) returns `{tier, active, trainingStepsLeft{fixedTrainingStepsLeft, purchasedTrainingSteps}, usage?}`; `usage = {percent, isNegative, timeUntilNextPercent}` is the Opus V5 allowance (absent below Opus). `api.novelai.net` is kept only as a fallback.
 
@@ -132,6 +133,29 @@ NAIWeaver supports multi-participant interactions where multiple characters can 
 | `add_original_image` | bool | Whether to blend with original |
 
 Set `action: "img2img"` in the request body. For inpainting, set `action: "infill"` and use the model's inpainting id (see **Models**).
+
+### Enhance scale rule and Enhance "Max" (V5)
+
+Enhance is a plain `img2img` request. The numeric scale chips follow NovelAI's own rule: candidates `[2, 1.5, 1]`, each kept only if the scaled size (rounded to a multiple of 64) stays within the 3,145,728 px cap — e.g. an 832×1216 source offers 1.5× and 1×.
+
+On a V5 model the app also offers **MAX** when `caps.maxEnhance` is set and the source is below 0.8 × the cap (2,516,582 px). The body then carries the source's own `width` / `height` (each rounded to a multiple of 64, as for every request) plus:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `upscaled_enhance` | bool | `true` — NovelAI returns 2× the sent size, or the sent aspect scaled to the 3,145,728 px cap when 2× would exceed it (the capped size is not 64-aligned: 896×1152 → 1564×2011; 512×768 → 1024×1536). The app reports the predicted size |
+
+The builder strips `upscaled_enhance` for V4.5 models.
+
+**Pricing (measured, 2026-09-09, Opus, V5 Full, `k_euler_ancestral`):** Max is charged in Anlas even on Opus — the V5 allowance did not move in any run. The charge matches the ordinary img2img price of the *output* size × strength × `naiMaxEnhanceCostFactor` (1.46, `lib/core/services/nai_cost_estimator.dart`):
+
+| Source → result | Steps | Strength | Anlas |
+|---|---|---|---|
+| 896×1152 → 1564×2011 | 23 | 0.3 | 23 |
+| 896×1152 → 1564×2011 | 28 | 0.3 | 27 |
+| 896×1152 → 1564×2011 | 23 | 0.6 | 45 |
+| 512×768 → 1024×1536 | 23 | 0.3 | 12 |
+
+Each run took 2.5–5 s. `test/live/enhance_max_live_test.dart` reproduces the probe (needs `--dart-define=NAI_TOKEN`; it spends Anlas).
 
 **Reference Inpainting:** Director Reference and Vibe Transfer parameters are supported during `infill` actions, allowing character/style references to guide what the AI infills into masked regions. The same reference parameters used for `generate` are passed alongside `image`, `mask`, and other inpainting parameters.
 
@@ -321,6 +345,9 @@ Content-Type: application/x-zip-compressed
 - `k_dpmpp_2s_ancestral`
 - `k_dpmpp_2m`
 - `k_dpmpp_sde`
+- `k_dpmpp_2m_sde`
+
+`ddim` is remapped to `k_euler_ancestral` on V5 (see the capability table above).
 
 ## Error Responses
 

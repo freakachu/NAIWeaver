@@ -61,7 +61,8 @@ lib/
 │   ├── services/
 │   │   ├── novel_ai_service.dart          # NovelAI API client (Dio, ZIP decompression)
 │   │   ├── text_gen_service.dart          # NovelAI text-model client (model-aware transport, SSE streaming)
-│   │   ├── saf_export_service.dart        # Android Storage Access Framework export (SD-card writes, stale-path detection)
+│   │   ├── saf_export_service.dart        # Android Storage Access Framework export (SD-card writes, stale-path detection, ensureSubfolder / nextImageSequence so the save-subfolder pattern and per-subfolder <digits> apply to picked-folder exports)
+│   │   ├── save_target_resolver.dart      # resolvePatternedSaveTarget: folder + filename from the pattern settings for a plain dir or SAF tree (shared by generation saves/exports and gallery exports)
 │   │   ├── preferences_service.dart       # SharedPreferences wrapper (core preferences)
 │   │   ├── preferences/
 │   │   │   ├── gallery_preferences.dart   # Gallery-specific preferences
@@ -73,7 +74,7 @@ lib/
 │   │   ├── wildcard_service.dart          # Wildcard file I/O and indexing
 │   │   ├── wildcard_processor.dart        # __wildcard__ pattern replacement (recursive, 5 levels)
 │   │   ├── presets.dart                   # GenerationPreset model + JSON persistence
-│   │   ├── styles.dart                    # PromptStyle model + JSON persistence
+│   │   ├── styles.dart                    # PromptStyle model (+ `models` = "Works with" V4.5/V5 set, optional steps/CFG override; legacy files load as both) + JSON persistence
 │   │   ├── tag_service.dart               # Tag auto-complete: bundled Danbooru list + imported sources merged; sorted-name prefix index
 │   │   ├── tag_source_service.dart        # Imported tag lists: manifest + one JSON per source under Tags/sources, favourites sidecar
 │   │   ├── tag_list_parser.dart           # Sniff/parse user tag lists (a1111 CSV, header CSV, e621 db_export, JSON, text, gzip)
@@ -84,7 +85,7 @@ lib/
 │   │   ├── nai_coordinate_utils.dart      # Character positioning math
 │   │   ├── responsive.dart                # Shared utilities: isMobile(), isDesktopPlatform(), responsiveFont(), touchTarget()
 │   │   ├── tag_suggestion_helper.dart     # Tag auto-complete logic shared across features
-│   │   ├── app_snackbar.dart              # Reusable snackbar helper
+│   │   ├── app_snackbar.dart              # Reusable snackbar helper + top-centre overlay toast (used by the gallery viewer)
 │   │   ├── file_picker_helper.dart        # Centralized cross-platform file picker (pickImageFiles, pickCustomFiles)
 │   │   └── timestamp_utils.dart           # EXIF date extraction and timestamp utilities
 │   └── widgets/
@@ -118,7 +119,8 @@ lib/
     │   │   ├── session_snapshot_service.dart   # Generation session state snapshots
     │   │   ├── character_manager.dart         # Character lifecycle management
     │   │   ├── preset_service.dart            # Preset apply/save logic extracted from notifier
-    │   │   └── metadata_import_service.dart   # PNG metadata import and field restoration
+    │   │   ├── metadata_import_service.dart   # PNG metadata import and field restoration
+    │   │   └── model_settings_memory.dart     # RenderSettingsCoordinator: per-model steps/CFG memory + per-style override
     │   └── widgets/
     │       ├── settings_panel.dart         # Collapsible advanced settings panel with custom resolutions
     │       ├── image_viewer.dart           # Interactive image display with zoom
@@ -135,6 +137,7 @@ lib/
     │   │   └── gallery_notifier.dart       # Gallery state, file management, sort modes
     │   ├── services/
     │   │   ├── album_service.dart          # Album CRUD operations
+    │   │   ├── gallery_export_target.dart  # Save-subfolder pattern for gallery exports (viewer + bulk), plain or SAF; file keeps its name
     │   │   └── gallery_import_service.dart # File import with EXIF date preservation and OriginalDate chunk injection
     │   └── ui/
     │       ├── gallery_screen.dart         # Full gallery view with search
@@ -212,6 +215,9 @@ lib/
         │   ├── style_editor.dart           # Prompt style creation/editing
         │   ├── wildcard_manager.dart       # Wildcard file browser/editor
         │   ├── tag_library_manager.dart    # Tag browser with preview generation
+        │   ├── tag_sources_sheet.dart      # Imported tag lists: enable / reorder / rename / update / export / delete
+        │   ├── tag_import_wizard.dart      # Tag-list import: shape sniff, column mapping, category-numbering profile, filters
+        │   ├── tag_detail_sheet.dart       # Per-tag detail (source badge, favourites, examples)
         │   ├── theme_builder.dart          # Theme customization UI (colors, font, scale, preview)
         │   ├── pack_manager.dart           # Pack export/import management UI
         │   └── app_settings.dart           # API key, auto-save, shelf visibility, quick actions, upscale backend, tooltips, locale
@@ -342,6 +348,12 @@ The Tools Hub sidebar defines tool items in a `_getTools()` method returning a l
 ### Characters & Outfits
 A `SavedCharacter` is stored as one JSON file (`CharacterLibraryService`), with its closet of `ClosetOutfit`s persisted separately (`ClosetService`) so wardrobes stay portable — clothing never lives on the character. Appearance is split into buckets (base / face / hair / body, plus NSFW sub-buckets). Each outfit tracks per-slot dressing state; `outfit_classifier`/`outfit_slots_data` define the garment taxonomy and concealment rules, and `OutfitRenderer` renders an outfit at its current state (hiding concealed layers, adding `nsfw` when dishevelled). Saved characters surface in the tag autocomplete as `[Name]`/`[Name (Outfit)]`; on insertion, `CharacterLibraryNotifier` expands them into the full tag block and routes the character's + outfit's de-duplicated negative tags to the correct negative field. AI character/wardrobe generation (`CharacterGenService`, `WardrobeGeneratorService`) issues a single bounded text-gen call (`<<END>>` stop string) through `TextGenNotifier`, with gender- and era-aware undergarment rules. Photoshoot mode works on an ephemeral copy of the outfit and only writes back on an explicit "save state to outfit".
 
+### Tag Autocomplete & Imported Tag Sources
+`TagService` merges the bundled Danbooru list with every enabled imported source into one lookup. The bundled record always wins a name collision and only absorbs extra aliases / a higher count; among imported lists the manifest order is the priority. `TagSourceService` persists `Tags/sources/tag_sources.json` (ordered manifest), one `<id>.json` per source and a `user_tag_state.json` sidecar for favourites / example images, all through `KvStore` so it works on web too. `TagListParser` sniffs the file shape (a1111 CSV, header CSV in any column order, e621 `db_export`, JSON array/map, plain text, optionally gzipped) and `TagSiteProfile` maps the site-specific category digits (the same digit means *meta* on Danbooru and *species* on e621). Prefix suggestions come from a sorted-name index searched by binary search; the substring and alias passes only run when the prefix pass under-fills the result list.
+
+### Prompt Styles & Model Targeting
+A `PromptStyle` carries a `models` set (`NaiModelFamily.v45` / `.v5`, both by default; legacy files, packs and imports load as both) and an optional steps/CFG override. The STYLES panel, cascade beats and Alt+Left/Right cycling only list styles whose set contains the active model's family; `reconcileActiveStylesForModel` (in `styles.dart`) drops an active style made only for the other family on a model switch, swapping in that family's style marked default when one exists. `RenderSettingsCoordinator` (`lib/features/generation/services/model_settings_memory.dart`) remembers steps / guidance per family (pref `model_render_settings`, also in the session snapshot and backups) and pushes a selected style's override while it is active, restoring the per-model values when it is deselected.
+
 ### Text Generation
 `TextGenService` (core) is a model-aware client: GLM/Xialong models route through the OpenAI-style `/oa/v1/completions` (GLM-4.6 through `/oa/v1/chat/completions`), legacy Kayra/Clio/Erato through `/ai/generate`, all on the same `pst-` token as image generation. `TextGenNotifier` owns model/parameter state, SSE streaming, client-side stop strings, reasoning capture (GLM "enable thinking"), and local history. It is also the engine behind the Characters and Wardrobe AI generators.
 
@@ -389,7 +401,7 @@ Context-aware floating action buttons rendered on the image viewer. Each button 
 
 ### Enhance
 1. Source image selected from image viewer, quick action overlay, or gallery detail view
-2. `EnhanceNotifier` sends image via `img2img` API with enhance-specific strength, noise, and scale settings
+2. `EnhanceNotifier` sends the image via the `img2img` API with enhance-specific strength, noise and scale; the numeric scale chips derive from NovelAI's `[2, 1.5, 1]` rule filtered by the 3,145,728 px cap, and on V5 the MAX option sends the source at its own dimensions with `upscaled_enhance: true` (result ≈ 3.1 MP)
 3. Result saved to gallery
 
 ### Gallery Import
@@ -424,7 +436,7 @@ Context-aware floating action buttons rendered on the image viewer. Each button 
 4. Saved closet is untouched unless the user taps "save state to outfit"
 
 ### Pack Export/Import
-1. `PackService.exportPack()` bundles selected presets, styles, wildcards, director ref images, saved refs/vibes, character presets, custom themes, gallery albums, and an allowlisted app/jukebox settings blob into a ZIP archive (`.vpack`)
+1. `PackService.exportPack()` bundles selected presets, styles, wildcards, director ref images, saved refs/vibes, character presets, custom themes, gallery albums, imported tag lists (manifest + per-source JSON), and an allowlisted app/jukebox settings blob (including `model_render_settings` and `gallery_viewer_controls_pinned`) into a ZIP archive (`.vpack`)
 2. Director reference images extracted to `references/` directory in the ZIP, referenced via `@ref:filename` pointers in preset JSON
 3. Saved director references and vibe transfers are included in packs via `saved_refs/` and `saved_vibes/` directories
 4. The settings blob is allowlisted on both export and import — API key, PIN hash, and folder paths are intentionally excluded so a pack can't inject those
@@ -435,7 +447,10 @@ Context-aware floating action buttons rendered on the image viewer. Each button 
 
 | File/Directory | Purpose |
 |---|---|
-| `Tags/high-frequency-tags-list.json` | Danbooru tag library for auto-complete |
+| `Tags/high-frequency-tags-list.json` | Danbooru tag library for auto-complete (never modified by imports) |
+| `Tags/sources/tag_sources.json` | Ordered manifest of imported tag lists (order = priority on name collisions) |
+| `Tags/sources/<id>.json` | One imported tag list |
+| `Tags/sources/user_tag_state.json` | Favourites / example images set on imported tags (survives re-import) |
 | `wildcards/*.txt` | User-defined wildcard substitution files |
 | `presets.json` | Saved generation presets |
 | `prompt_styles.json` | Saved prompt style templates |
