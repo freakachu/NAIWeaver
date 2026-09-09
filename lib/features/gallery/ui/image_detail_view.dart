@@ -686,7 +686,14 @@ class _ImageDetailViewState extends State<ImageDetailView>
       final clipboard = SystemClipboard.instance;
       if (clipboard != null) {
         await clipboard.write([clipItem]);
-        if (mounted) showAppSnackBar(context, 'COPIED TO CLIPBOARD', color: const Color(0xFF4CAF50));
+        if (mounted) {
+          showTopToast(
+            context,
+            context.l.galleryCopiedToClipboard.toUpperCase(),
+            color: const Color(0xFF4CAF50),
+            icon: Icons.check,
+          );
+        }
         return;
       }
     } catch (_) {}
