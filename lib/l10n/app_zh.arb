@@ -843,7 +843,7 @@
   "settingsFilenamePattern": "文件名模式",
   "settingsFilenamePatternDesc": "保存图像的自定义名称。可用标记: <prompt>, <seed>, <album:fallback>, <year>, <month>, <day>, <hours>, <minutes>, <seconds>, <date>, <time>, <digits:0000>。留空使用 NAI 风格默认值。",
   "settingsSavePathPattern": "保存子文件夹模式",
-  "settingsSavePathPatternDesc": "在输出文件夹下自动创建子文件夹，例如 <year>/<month>/<day>。使用相同标记。留空则不创建。",
+  "settingsSavePathPatternDesc": "在输出文件夹（以及自定义导出文件夹，包括 SD 卡）下自动创建子文件夹，例如 <year>/<month>/<day>。使用相同标记。留空则不创建。导出到设备相册时不分子文件夹。",
   "settingsPatternPreview": "预览",
   "settingsOutputFolderDefault": "默认（应用存储）",
   "settingsOutputFolderBrowse": "浏览",

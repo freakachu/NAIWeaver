@@ -849,7 +849,7 @@
   "settingsFilenamePattern": "Filename Pattern",
   "settingsFilenamePatternDesc": "Custom name for saved images. Tokens: <prompt>, <seed>, <album:fallback>, <year>, <month>, <day>, <hours>, <minutes>, <seconds>, <date>, <time>, <digits:0000>. Leave empty for the NAI-style default.",
   "settingsSavePathPattern": "Save Subfolder Pattern",
-  "settingsSavePathPatternDesc": "Auto-create subfolders under the output folder, e.g. <year>/<month>/<day>. Same tokens. Leave empty for none.",
+  "settingsSavePathPatternDesc": "Auto-create subfolders under the output folder (and under a custom export folder, including an SD card), e.g. <year>/<month>/<day>. Same tokens. Leave empty for none. The device-gallery album export stays flat.",
   "settingsPatternPreview": "Preview",
   "settingsOutputFolderDefault": "Default (App Storage)",
   "settingsOutputFolderBrowse": "Browse",

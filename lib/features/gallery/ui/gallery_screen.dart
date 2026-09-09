@@ -21,6 +21,7 @@ import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/timestamp_utils.dart';
 import '../providers/gallery_notifier.dart';
+import '../services/gallery_export_target.dart';
 import '../../generation/providers/generation_notifier.dart';
 import '../../tools/img2img/providers/img2img_notifier.dart';
 import '../../../core/ml/ml_notifier.dart';
@@ -193,6 +194,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Future<void> _bulkExport(List<GalleryItem> selectedItems) async {
     final t = context.tRead;
     final prefs = context.read<PreferencesService>();
+    final exportGallery = context.read<GalleryNotifier>();
     try {
       // Honor a user-chosen export folder on mobile (previously ignored — the
       // bulk export always went to the device gallery, symptom #1 of #13).
@@ -217,12 +219,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
           var bytes = await item.file.readAsBytes();
           bytes = await _maybeStripMetadata(bytes);
           final name = p.basenameWithoutExtension(item.file.path);
-          if (SafExportService.isSafUri(customFolder)) {
-            await SafExportService.instance.writePng(customFolder, name, bytes);
+          // The save-subfolder pattern (issue #27) applies to a picked folder
+          // too — plain or SAF; each file keeps its gallery name.
+          final targetDir = await galleryExportDir(
+            gallery: exportGallery,
+            item: item,
+            baseDir: customFolder,
+            savePathPattern: prefs.savePathPattern,
+          );
+          if (SafExportService.isSafUri(targetDir)) {
+            await SafExportService.instance.writePng(targetDir, name, bytes);
           } else {
-            final dir = Directory(customFolder);
+            final dir = Directory(targetDir);
             if (!await dir.exists()) await dir.create(recursive: true);
-            await File(p.join(customFolder, item.basename)).writeAsBytes(bytes);
+            await File(p.join(targetDir, item.basename)).writeAsBytes(bytes);
           }
           copied++;
         }

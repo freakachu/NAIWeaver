@@ -2401,7 +2401,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsSavePathPatternDesc =>
-      '在输出文件夹下自动创建子文件夹，例如 <year>/<month>/<day>。使用相同标记。留空则不创建。';
+      '在输出文件夹（以及自定义导出文件夹，包括 SD 卡）下自动创建子文件夹，例如 <year>/<month>/<day>。使用相同标记。留空则不创建。导出到设备相册时不分子文件夹。';
 
   @override
   String get settingsPatternPreview => '预览';

@@ -20,14 +20,20 @@ Future<int> nextImageSequence(String directoryPath) async {
   var count = 0;
   await for (final entity in dir.list(followLinks: false)) {
     if (entity is! File) continue;
-    final name = p.basename(entity.path).toLowerCase();
-    if (name.contains('.canvas.')) continue; // canvas sidecar files
-    final ext = p.extension(name);
-    if (ext == '.png' || ext == '.webp' || ext == '.jpg' || ext == '.jpeg') {
-      count++;
-    }
+    if (isCountableImageName(p.basename(entity.path))) count++;
   }
   return count + 1;
+}
+
+/// Whether a directory entry named [fileName] counts toward the `<digits>`
+/// sequence: an image by extension, excluding canvas sidecar files. Shared by
+/// the plain-filesystem counter above and the SAF-tree counter so both
+/// targets number images identically.
+bool isCountableImageName(String fileName) {
+  final name = fileName.toLowerCase();
+  if (name.contains('.canvas.')) return false; // canvas sidecar files
+  final ext = p.extension(name);
+  return ext == '.png' || ext == '.webp' || ext == '.jpg' || ext == '.jpeg';
 }
 
 Future<String> uniqueFilePath(

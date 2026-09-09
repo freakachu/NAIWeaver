@@ -776,7 +776,7 @@
   "settingsFilenamePattern": "ファイル名パターン",
   "settingsFilenamePatternDesc": "保存画像のカスタム名。トークン: <prompt>, <seed>, <album:fallback>, <year>, <month>, <day>, <hours>, <minutes>, <seconds>, <date>, <time>, <digits:0000>。空欄でNAI形式のデフォルト。",
   "settingsSavePathPattern": "保存サブフォルダーパターン",
-  "settingsSavePathPatternDesc": "出力フォルダー内にサブフォルダーを自動作成（例: <year>/<month>/<day>）。同じトークンが使えます。空欄で無効。",
+  "settingsSavePathPatternDesc": "出力フォルダー内（およびSDカードを含むカスタム書き出しフォルダー内）にサブフォルダーを自動作成（例: <year>/<month>/<day>）。同じトークンが使えます。空欄で無効。端末ギャラリーのアルバムへの書き出しは階層化されません。",
   "settingsPatternPreview": "プレビュー",
   "settingsOutputFolderDefault": "デフォルト（アプリストレージ）",
   "settingsOutputFolderBrowse": "参照",

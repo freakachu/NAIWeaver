@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:saf_stream/saf_stream.dart';
 import 'package:saf_util/saf_util.dart';
 
+import '../utils/unique_file_path.dart';
+
 /// Thin wrapper around the Storage Access Framework (SAF) for exporting images
 /// to a user-chosen folder — including a removable SD card, which plain
 /// `dart:io` `File` writes cannot reach under Android scoped storage (issue #13).
@@ -68,6 +70,46 @@ class SafExportService {
   Future<void> writePng(String treeUri, String fileName, Uint8List bytes) async {
     final name = fileName.toLowerCase().endsWith('.png') ? fileName : '$fileName.png';
     await _stream.writeFileBytes(treeUri, name, 'image/png', bytes, overwrite: true);
+  }
+
+  /// Creates (if needed) the folder chain [relativePath] — a `/`-joined
+  /// string as produced by `expandSavePathPattern` — under [treeUri] and
+  /// returns the URI of the innermost folder. An empty [relativePath] returns
+  /// [treeUri] itself, so callers can pass the expanded pattern unconditionally.
+  ///
+  /// This is what lets the save-subfolder pattern (issue #27) apply to an
+  /// SD-card / SAF export target, which has no filesystem path to `join`.
+  Future<String> ensureSubfolder(String treeUri, String relativePath) async {
+    final names = splitSubfolderPath(relativePath);
+    if (names.isEmpty) return treeUri;
+    final dir = await _util.mkdirp(treeUri, names);
+    return dir.uri;
+  }
+
+  /// Next value for a `<digits>` counter inside the SAF folder [treeUri]: one
+  /// more than the number of images already there — the SAF twin of
+  /// `nextImageSequence`, using the same file-name rule so counters behave the
+  /// same on both targets.
+  Future<int> nextImageSequence(String treeUri) async {
+    final entries = await _util.list(treeUri);
+    var count = 0;
+    for (final entry in entries) {
+      if (entry.isDir) continue;
+      if (isCountableImageName(entry.name)) count++;
+    }
+    return count + 1;
+  }
+
+  /// Splits a `/`- or `\`-separated relative path into folder names, dropping
+  /// empty segments. `expandSavePathPattern` already strips `.`/`..`, but the
+  /// split is defensive about them too so a SAF `mkdirp` can never be asked
+  /// to walk upward.
+  static List<String> splitSubfolderPath(String relativePath) {
+    return relativePath
+        .split(RegExp(r'[/\\]'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty && s != '.' && s != '..')
+        .toList();
   }
 }
 

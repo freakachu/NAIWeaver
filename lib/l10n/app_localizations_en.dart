@@ -2455,7 +2455,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSavePathPatternDesc =>
-      'Auto-create subfolders under the output folder, e.g. <year>/<month>/<day>. Same tokens. Leave empty for none.';
+      'Auto-create subfolders under the output folder (and under a custom export folder, including an SD card), e.g. <year>/<month>/<day>. Same tokens. Leave empty for none. The device-gallery album export stays flat.';
 
   @override
   String get settingsPatternPreview => 'Preview';

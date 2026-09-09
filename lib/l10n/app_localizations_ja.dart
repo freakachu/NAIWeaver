@@ -2409,7 +2409,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsSavePathPatternDesc =>
-      '出力フォルダー内にサブフォルダーを自動作成（例: <year>/<month>/<day>）。同じトークンが使えます。空欄で無効。';
+      '出力フォルダー内（およびSDカードを含むカスタム書き出しフォルダー内）にサブフォルダーを自動作成（例: <year>/<month>/<day>）。同じトークンが使えます。空欄で無効。端末ギャラリーのアルバムへの書き出しは階層化されません。';
 
   @override
   String get settingsPatternPreview => 'プレビュー';

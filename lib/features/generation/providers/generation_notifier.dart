@@ -18,6 +18,7 @@ import '../../../core/utils/nai_filename.dart';
 import '../../../core/utils/unique_file_path.dart';
 import '../../../core/utils/web_download.dart';
 import '../../../core/services/saf_export_service.dart';
+import '../../../core/services/save_target_resolver.dart';
 import '../../../core/models/nai_model.dart';
 import '../../../core/services/preferences_service.dart';
 import '../../../core/services/novel_ai_service.dart';
@@ -889,8 +890,9 @@ class GenerationNotifier extends ChangeNotifier {
       final fallbackName = _lastMetadata != null
           ? _buildFileName(_lastMetadata!)
           : 'Gen_${DateFormat('yyyyMMdd_HHmmssSSS').format(DateTime.now())}';
-      // Custom filename pattern (issue #27); `<digits>` can't count a SAF
-      // tree or the device gallery, so it stays at 1 for those targets.
+      // Custom filename pattern (issue #27) for the device-gallery target,
+      // which is flat and can't be counted, so `<digits>` stays at 1 there.
+      // Folder targets (plain or SAF) resolve their own patterned target below.
       final exportName = _patternedName(_lastMetadata, fallbackName);
 
       // If a custom export folder is set, write directly there (any platform)
@@ -912,15 +914,11 @@ class GenerationNotifier extends ChangeNotifier {
           }
           return;
         }
-        if (SafExportService.isSafUri(customFolder)) {
-          await _exportToFolder(_state.generatedImage!, customFolder, exportName);
-        } else {
-          // Plain folders also honor the path pattern's auto-subfolders and
-          // per-folder <digits> counting (issue #27).
-          final target = await _patternedTarget(
-              customFolder, _lastMetadata ?? const {}, fallbackName);
-          await _exportToFolder(_state.generatedImage!, target.dir, target.base);
-        }
+        // Both plain folders and SAF trees honor the path pattern's
+        // auto-subfolders and per-folder <digits> counting (issue #27).
+        final target = await _patternedTarget(
+            customFolder, _lastMetadata ?? const {}, fallbackName);
+        await _exportToFolder(_state.generatedImage!, target.dir, target.base);
         if (context.mounted) {
           final label = SafExportService.isSafUri(customFolder)
               ? 'SD CARD'
@@ -994,14 +992,9 @@ class GenerationNotifier extends ChangeNotifier {
       if (customFolder.isNotEmpty &&
           !kIsWeb &&
           !SafExportService.isStalePlainPath(customFolder)) {
-        if (SafExportService.isSafUri(customFolder)) {
-          await _exportToFolder(
-              bytes, customFolder, _patternedName(_lastMetadata, fallbackName));
-        } else {
-          final target = await _patternedTarget(
-              customFolder, _lastMetadata ?? const {}, fallbackName);
-          await _exportToFolder(bytes, target.dir, target.base);
-        }
+        final target = await _patternedTarget(
+            customFolder, _lastMetadata ?? const {}, fallbackName);
+        await _exportToFolder(bytes, target.dir, target.base);
         return;
       }
 
@@ -1304,8 +1297,8 @@ class GenerationNotifier extends ChangeNotifier {
   /// `<digits>` tokens. Returns [fallback] when no pattern is set, when
   /// prompt/seed are unavailable (the same condition under which the
   /// NAI-style default itself applies), or when the pattern expands to
-  /// nothing. Used directly for targets whose contents we can't cheaply
-  /// count (SAF trees, the device gallery) — there `<digits>` stays at 1.
+  /// nothing. Used directly for the device-gallery target, whose album is
+  /// flat and can't be counted — there `<digits>` stays at 1.
   String _patternedName(Map<String, dynamic>? metadata, String fallback,
       {int sequence = 1}) {
     final pattern = _prefs.filenamePattern;
@@ -1325,46 +1318,22 @@ class GenerationNotifier extends ChangeNotifier {
     return expanded.isEmpty ? fallback : expanded;
   }
 
-  /// Resolves the destination folder and filename base for a plain-filesystem
-  /// save under [baseDir] from the pattern settings (issue #27). The path
+  /// Resolves the destination folder and filename base for a save under
+  /// [baseDir] — a plain directory or a SAF tree URI (SD card / picked
+  /// folder on Android) — from the pattern settings (issue #27). The path
   /// pattern can add auto-subfolders; `<digits>` counts the images already in
-  /// the final folder, so counters reset per subfolder.
-  Future<_SaveTarget> _patternedTarget(String baseDir,
-      Map<String, dynamic> metadata, String fallbackBase) async {
-    final pathPattern = _prefs.savePathPattern;
-    final fnPattern = _prefs.filenamePattern;
-    final prompt = (metadata['prompt'] as String? ?? '').trim();
-    final seed = metadata['seed']?.toString() ?? '';
-    if ((pathPattern.isEmpty && fnPattern.isEmpty) ||
-        prompt.isEmpty ||
-        seed.isEmpty) {
-      return _SaveTarget(baseDir, fallbackBase);
-    }
-    final savedAt = DateTime.now();
-    final albumName = _defaultSaveAlbumName();
-    var dirPath = baseDir;
-    final sub = expandSavePathPattern(
-        pathPattern,
-        FilenamePatternContext(
-            prompt: prompt, seed: seed, savedAt: savedAt, albumName: albumName));
-    if (sub.isNotEmpty) dirPath = p.join(dirPath, sub);
-    var base = fallbackBase;
-    if (fnPattern.isNotEmpty) {
-      // Only pay for a directory listing when the pattern actually counts.
-      final seq = fnPattern.contains('<digits')
-          ? await nextImageSequence(dirPath)
-          : 1;
-      final expanded = expandFilenamePattern(
-          fnPattern,
-          FilenamePatternContext(
-              prompt: prompt,
-              seed: seed,
-              savedAt: savedAt,
-              albumName: albumName,
-              sequence: seq));
-      if (expanded.isNotEmpty) base = expanded;
-    }
-    return _SaveTarget(dirPath, base);
+  /// the final folder, so counters reset per subfolder on either target.
+  Future<SaveTarget> _patternedTarget(String baseDir,
+      Map<String, dynamic> metadata, String fallbackBase) {
+    return resolvePatternedSaveTarget(
+      baseDir: baseDir,
+      savePathPattern: _prefs.savePathPattern,
+      filenamePattern: _prefs.filenamePattern,
+      prompt: metadata['prompt'] as String? ?? '',
+      seed: metadata['seed']?.toString() ?? '',
+      fallbackBase: fallbackBase,
+      albumName: _defaultSaveAlbumName(),
+    );
   }
 
   /// Returns [baseName] if it hasn't been downloaded this session, otherwise
@@ -1389,7 +1358,7 @@ class GenerationNotifier extends ChangeNotifier {
       // names and flat location; the pattern settings apply to standard
       // generation saves (issue #27).
       final target = timestamp != null
-          ? _SaveTarget(_outputDir, '${prefix}_$timestamp')
+          ? SaveTarget(_outputDir, '${prefix}_$timestamp')
           : await _patternedTarget(
               _outputDir, metadata, _buildFileName(metadata, prefix: prefix));
       final directory = Directory(target.dir);
@@ -2058,11 +2027,4 @@ class GenerationNotifier extends ChangeNotifier {
   }
 }
 
-/// Destination folder + filename base resolved from the pattern settings
-/// (issue #27).
-class _SaveTarget {
-  final String dir;
-  final String base;
-  const _SaveTarget(this.dir, this.base);
-}
 

@@ -19,6 +19,7 @@ import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/timestamp_utils.dart';
 import '../providers/gallery_notifier.dart';
+import '../services/gallery_export_target.dart';
 import '../../generation/providers/generation_notifier.dart';
 import '../../director_ref/providers/director_ref_notifier.dart';
 import '../../vibe_transfer/providers/vibe_transfer_notifier.dart';
@@ -317,6 +318,7 @@ class _ImageDetailViewState extends State<ImageDetailView>
   Future<void> _exportImage() async {
     final t = context.tRead;
     final prefs = context.read<PreferencesService>();
+    final exportGallery = context.read<GalleryNotifier>();
     final item = _currentItem;
     setState(() => _isExporting = true);
     try {
@@ -345,12 +347,20 @@ class _ImageDetailViewState extends State<ImageDetailView>
           bytes = stripMetadata(bytes);
         }
         final name = p.basenameWithoutExtension(sourceFile.path);
-        if (SafExportService.isSafUri(customFolder)) {
-          await SafExportService.instance.writePng(customFolder, name, bytes);
+        // The save-subfolder pattern (issue #27) applies to a picked folder
+        // too — plain or SAF; the file keeps its gallery name.
+        final targetDir = await galleryExportDir(
+          gallery: exportGallery,
+          item: item,
+          baseDir: customFolder,
+          savePathPattern: prefs.savePathPattern,
+        );
+        if (SafExportService.isSafUri(targetDir)) {
+          await SafExportService.instance.writePng(targetDir, name, bytes);
         } else {
-          final dir = Directory(customFolder);
+          final dir = Directory(targetDir);
           if (!await dir.exists()) await dir.create(recursive: true);
-          await File(p.join(customFolder, fileName)).writeAsBytes(bytes);
+          await File(p.join(targetDir, fileName)).writeAsBytes(bytes);
         }
         if (mounted) {
           showAppSnackBar(context, context.l.gallerySavedToDevice, color: t.accent);
