@@ -116,22 +116,37 @@ List<PromptStyle> stylesForModel(List<PromptStyle> styles, NaiModel model) =>
 int hiddenStyleCount(List<PromptStyle> styles, NaiModel model) =>
     styles.where((s) => !s.supports(model)).length;
 
+/// Name of the bundled "Light … - NAI" preset for [family]: the style the app
+/// selects on first launch, and the fallback [reconcileActiveStylesForModel]
+/// swaps in when no style is marked default for the new family.
+String bundledDefaultStyleName(NaiModelFamily family) => switch (family) {
+      NaiModelFamily.v45 => 'Light V4.5 - NAI',
+      NaiModelFamily.v5 => 'Light V5 - NAI',
+    };
+
 /// Active style names after switching to [model].
 ///
 /// A style that already targets the new family (or targets every family) is
 /// never touched, and neither is a name that no longer resolves to a style.
-/// A style made only for the other family is swapped for the first
-/// `isDefault` style that targets the new one — or simply dropped when there
-/// is none. Order is preserved and nothing is listed twice.
+/// A style made only for the other family is swapped for that family's
+/// default: the first `isDefault` style that targets the new model, else the
+/// bundled [bundledDefaultStyleName] preset when it is present — or simply
+/// dropped when there is neither. Order is preserved and nothing is listed
+/// twice.
 List<String> reconcileActiveStylesForModel({
   required List<String> activeStyleNames,
   required List<PromptStyle> styles,
   required NaiModel model,
 }) {
+  final bundled = bundledDefaultStyleName(model.family);
   final fallback = styles
-      .where((s) => s.isDefault && s.supports(model))
-      .map((s) => s.name)
-      .firstOrNull;
+          .where((s) => s.isDefault && s.supports(model))
+          .map((s) => s.name)
+          .firstOrNull ??
+      styles
+          .where((s) => s.name == bundled && s.supports(model))
+          .map((s) => s.name)
+          .firstOrNull;
   final out = <String>[];
   for (final name in activeStyleNames) {
     final style = styles.where((s) => s.name == name).firstOrNull;

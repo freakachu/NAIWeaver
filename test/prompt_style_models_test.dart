@@ -142,6 +142,25 @@ void main() {
       expect(to(NaiModel.v5Full, ['Q45', 'Both'], noDefaults), ['Both']);
     });
 
+    test('with nothing marked default, the bundled Light preset for the new family steps in', () {
+      final bundledSet = [
+        ...styles.map((s) => s.copyWith(isDefault: false)),
+        PromptStyle(name: bundledDefaultStyleName(NaiModelFamily.v45), models: {NaiModelFamily.v45}),
+        PromptStyle(name: bundledDefaultStyleName(NaiModelFamily.v5), models: {NaiModelFamily.v5}),
+      ];
+      expect(to(NaiModel.v5Full, ['Q45'], bundledSet), ['Light V5 - NAI']);
+      expect(to(NaiModel.v45Curated, ['Art5'], bundledSet), ['Light V4.5 - NAI']);
+      // A style marked default still wins over the bundled preset.
+      expect(to(NaiModel.v5Full, ['Q45'], [...bundledSet, PromptStyle(name: 'Mine', isDefault: true)]), ['Mine']);
+    });
+
+    test('the bundled prompt_styles.json carries both Light presets', () {
+      final raw = File('prompt_styles.json').readAsStringSync();
+      final names = (jsonDecode(raw) as List).map((e) => (e as Map)['name']).toSet();
+      expect(names, contains(bundledDefaultStyleName(NaiModelFamily.v45)));
+      expect(names, contains(bundledDefaultStyleName(NaiModelFamily.v5)));
+    });
+
     test('unknown names are left alone and nothing is listed twice', () {
       expect(to(NaiModel.v5Full, ['ghost', 'Q45', 'Art45']), ['ghost', 'Both']);
       expect(to(NaiModel.v5Full, ['Both', 'Q45']), ['Both']);
