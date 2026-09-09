@@ -29,6 +29,7 @@ class StyleEditor extends StatelessWidget {
         initialStyles: genNotifier.state.styles,
         stylesFilePath: genNotifier.stylesFilePath,
         onStylesChanged: () => genNotifier.refreshStyles(),
+        onStyleRenamed: genNotifier.renameActiveStyle,
         initialStyleName: initialStyleName,
         characterSuggestionsFor: (q) => charLib.suggestionTags(q),
         overrideSeed: (steps: genNotifier.state.steps, scale: genNotifier.state.scale),

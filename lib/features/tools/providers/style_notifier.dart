@@ -53,6 +53,11 @@ class StyleNotifier extends ChangeNotifier {
   final WildcardService _wildcardService;
   final String _stylesFilePath;
   final VoidCallback onStylesChanged;
+
+  /// Fired (before [onStylesChanged]) when a save renames an existing style,
+  /// so whoever tracks styles by name — the generator's active list — can
+  /// follow it.
+  final void Function(String oldName, String newName)? onStyleRenamed;
   final List<DanbooruTag> Function(String query)? characterSuggestionsFor;
 
   final TextEditingController nameController = TextEditingController();
@@ -72,6 +77,7 @@ class StyleNotifier extends ChangeNotifier {
     required List<PromptStyle> initialStyles,
     required String stylesFilePath,
     required this.onStylesChanged,
+    this.onStyleRenamed,
     String? initialStyleName,
     this.characterSuggestionsFor,
     this.overrideSeed = (steps: 28, scale: 5),
@@ -269,6 +275,9 @@ class StyleNotifier extends ChangeNotifier {
       isModified: false,
     );
     await StyleStorage.saveStyles(_stylesFilePath, updatedStyles);
+    if (index != -1 && originalName != null && originalName != finalStyle.name) {
+      onStyleRenamed?.call(originalName, finalStyle.name);
+    }
     onStylesChanged();
     notifyListeners();
   }

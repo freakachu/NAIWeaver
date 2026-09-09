@@ -21,12 +21,15 @@ void main() {
         PromptStyle(name: 'Sketch', negativeContent: 'color'),
       ];
 
+  final renames = <(String, String)>[];
+
   StyleNotifier make({List<PromptStyle>? styles}) => StyleNotifier(
         tagService: TagService(filePath: p.join(tmp.path, 'tags.csv')),
         wildcardService: WildcardService(wildcardDir: p.join(tmp.path, 'wc')),
         initialStyles: styles ?? seed(),
         stylesFilePath: stylesPath,
         onStylesChanged: () => changedCalls++,
+        onStyleRenamed: (o, n) => renames.add((o, n)),
       );
 
   setUp(() async {
@@ -34,6 +37,7 @@ void main() {
     tmp = await Directory.systemTemp.createTemp('style_notifier_test_');
     stylesPath = p.join(tmp.path, 'prompt_styles.json');
     changedCalls = 0;
+    renames.clear();
   });
 
   tearDown(() async {
@@ -111,6 +115,18 @@ void main() {
       final n = make();
       n.selectStyle(n.state.styles[1]);
       expect(n.hasNameConflict(), isFalse);
+    });
+
+    test('a rename reports old → new so the active list can follow; plain saves do not', () async {
+      final n = make();
+      n.selectStyle(n.state.styles.firstWhere((s) => s.name == 'Anime'));
+      n.nameController.text = 'Anime 2';
+      n.updateCurrentStyle();
+      await n.saveStyle();
+      expect(renames, [('Anime', 'Anime 2')]);
+      n.updateCurrentStyle(content: 'flat');
+      await n.saveStyle();
+      expect(renames.length, 1, reason: 'no rename on a content-only save');
     });
 
     test('content-only edits replace in place', () async {

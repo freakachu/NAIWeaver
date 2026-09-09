@@ -172,6 +172,36 @@ void main() {
       expect(shown, (steps: 17.0, scale: 7.0));
     });
 
+    test('a user edit on top of an override survives toggling another style', () {
+      final c = RenderSettingsCoordinator();
+      c.rememberEdit(v5, (steps: 17, scale: 7));
+      var shown = c.syncStyleOverride(
+          activeStyles: [fast], stylesEnabled: true, family: v5, current: (steps: 17, scale: 7));
+      expect(shown, (steps: 12.0, scale: 4.0));
+      // User nudges steps 12 → 20 with Fast still selected, then toggles Plain.
+      shown = c.syncStyleOverride(
+          activeStyles: [fast, plain], stylesEnabled: true, family: v5, current: (steps: 20, scale: 4));
+      expect(shown, (steps: 20.0, scale: 4.0), reason: 'the override is not re-applied');
+      expect(c.overrideStyleName, 'Fast');
+      // Deselecting Fast restores V5's own memory.
+      shown = c.syncStyleOverride(activeStyles: [plain], stylesEnabled: true, family: v5, current: shown);
+      expect(shown, (steps: 17.0, scale: 7.0));
+    });
+
+    test('renaming the override style keeps it tracked under the new name', () {
+      final c = RenderSettingsCoordinator();
+      var shown = c.syncStyleOverride(
+          activeStyles: [fast], stylesEnabled: true, family: v5, current: (steps: 17, scale: 7));
+      c.renameOverrideStyle('Fast', 'Quick');
+      expect(c.overrideStyleName, 'Quick');
+      final quick = fast.copyWith(name: 'Quick');
+      shown = c.syncStyleOverride(
+          activeStyles: [quick], stylesEnabled: true, family: v5, current: (steps: 20, scale: 4));
+      expect(shown, (steps: 20.0, scale: 4.0), reason: 'same style, not re-applied');
+      shown = c.syncStyleOverride(activeStyles: const [], stylesEnabled: true, family: v5, current: shown);
+      expect(c.overrideActive, isFalse);
+    });
+
     test('a user edit while an override is active is what comes back on deselect', () {
       final c = RenderSettingsCoordinator();
       var shown = c.syncStyleOverride(

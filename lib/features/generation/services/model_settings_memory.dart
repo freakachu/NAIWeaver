@@ -73,15 +73,23 @@ class ModelSettingsMemory {
 ///   not the user's) and the NEW family's stored values come back. A family
 ///   never used keeps whatever is on screen; model defaults are never
 ///   applied implicitly.
-/// * The first active style with a render override pushes its values while
-///   selected. When it is deselected, or replaced by a style without one, the
-///   per-model values are restored (falling back to what was on screen when
-///   the override was applied). A style override wins over per-model memory.
+/// * The first active style with a render override pushes its values when it
+///   becomes the override (and again after a model switch, since the switch
+///   brings the new family's own values back). While that same style stays
+///   the override, edits the user makes on top of it stick — toggling some
+///   other style must not re-apply the numbers. When it is deselected, or
+///   replaced by a style without one, the per-model values are restored
+///   (falling back to what was on screen when the override was applied). A
+///   style override wins over per-model memory.
 class RenderSettingsCoordinator {
   ModelSettingsMemory memory;
 
   /// Name of the style whose override is currently applied, if any.
   String? overrideStyleName;
+
+  /// Family the override was last pushed for; a different family means the
+  /// values on screen are the new family's memory, not the style's.
+  NaiModelFamily? _overrideFamily;
 
   RenderValues? _beforeOverride;
 
@@ -120,16 +128,28 @@ class RenderSettingsCoordinator {
     if (style == null) {
       if (!overrideActive) return current;
       overrideStyleName = null;
+      _overrideFamily = null;
       final restore = memory.entryFor(family) ?? _beforeOverride;
       _beforeOverride = null;
       return restore ?? current;
     }
 
+    // Same style, same family: already applied — leave the user's edits alone.
+    if (style.name == overrideStyleName && family == _overrideFamily) {
+      return current;
+    }
+
     if (!overrideActive) _beforeOverride = current;
     overrideStyleName = style.name;
+    _overrideFamily = family;
     return (
       steps: style.steps ?? current.steps,
       scale: style.scale ?? current.scale,
     );
+  }
+
+  /// The override style was renamed; keep tracking it under the new name.
+  void renameOverrideStyle(String oldName, String newName) {
+    if (overrideStyleName == oldName) overrideStyleName = newName;
   }
 }

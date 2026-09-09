@@ -1124,6 +1124,25 @@ class GenerationNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A style was renamed in the editor: keep it selected under its new name
+  /// (the active list is by name), including its steps / guidance override.
+  /// The editor reloads the style list right after, which re-syncs the
+  /// override against the renamed entry.
+  void renameActiveStyle(String oldName, String newName) {
+    if (oldName == newName) return;
+    final current = List<String>.from(_state.activeStyleNames);
+    final i = current.indexOf(oldName);
+    if (i < 0) return;
+    if (current.contains(newName)) {
+      current.removeAt(i);
+    } else {
+      current[i] = newName;
+    }
+    _state = _state.copyWith(activeStyleNames: current);
+    _render.renameOverrideStyle(oldName, newName);
+    notifyListeners();
+  }
+
   Future<void> generate() async {
     clearTagSuggestions();
 
