@@ -808,6 +808,24 @@ abstract class AppLocalizations {
   /// **'Copy'**
   String get galleryCopy;
 
+  /// No description provided for @galleryCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get galleryCopiedToClipboard;
+
+  /// No description provided for @galleryPinControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep controls visible'**
+  String get galleryPinControls;
+
+  /// No description provided for @galleryUnpinControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-hide controls'**
+  String get galleryUnpinControls;
+
   /// No description provided for @galleryShare.
   ///
   /// In en, this message translates to:
@@ -2254,6 +2272,18 @@ abstract class AppLocalizations {
   /// **'SAVE AS NEW'**
   String get styleSaveAsNew;
 
+  /// No description provided for @styleWorksWith.
+  ///
+  /// In en, this message translates to:
+  /// **'WORKS WITH'**
+  String get styleWorksWith;
+
+  /// No description provided for @panelStylesHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} styles hidden (made for {model})'**
+  String panelStylesHidden(int count, String model);
+
   /// No description provided for @styleRenderOverride.
   ///
   /// In en, this message translates to:
@@ -2283,18 +2313,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A STYLE WITH THE NAME \'\'{name}\'\' ALREADY EXISTS. OVERWRITE?'**
   String styleOverwriteConfirm(String name);
-
-  /// No description provided for @styleWorksWith.
-  ///
-  /// In en, this message translates to:
-  /// **'WORKS WITH'**
-  String get styleWorksWith;
-
-  /// No description provided for @panelStylesHidden.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} styles hidden (made for {model})'**
-  String panelStylesHidden(int count, String model);
 
   /// No description provided for @refPreciseReferences.
   ///
@@ -5432,18 +5450,6 @@ abstract class AppLocalizations {
   /// **'NOISE'**
   String get enhanceNoise;
 
-  /// No description provided for @enhanceSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'ENHANCED IMAGE SAVED TO GALLERY'**
-  String get enhanceSaved;
-
-  /// No description provided for @settingsSeedControl.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Seed Control'**
-  String get settingsSeedControl;
-
   /// No description provided for @enhanceMaxChip.
   ///
   /// In en, this message translates to:
@@ -5461,6 +5467,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'~{anlas} ANLAS (EST.)'**
   String enhanceEstimatedCost(int anlas);
+
+  /// No description provided for @enhanceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'ENHANCED IMAGE SAVED TO GALLERY'**
+  String get enhanceSaved;
+
+  /// No description provided for @settingsSeedControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Seed Control'**
+  String get settingsSeedControl;
 
   /// No description provided for @settingsSeedControlDesc.
   ///

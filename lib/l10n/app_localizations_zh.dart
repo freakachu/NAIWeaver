@@ -380,6 +380,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get galleryCopy => '复制';
 
   @override
+  String get galleryCopiedToClipboard => '已复制到剪贴板';
+
+  @override
+  String get galleryPinControls => '保持控件显示';
+
+  @override
+  String get galleryUnpinControls => '自动隐藏控件';
+
+  @override
   String get galleryShare => '分享';
 
   @override
@@ -1153,6 +1162,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get styleSaveAsNew => '另存为新风格';
 
   @override
+  String get styleWorksWith => '适用模型';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '已隐藏 $count 个风格（为 $model 制作）';
+  }
+
+  @override
   String get styleRenderOverride => '为此风格单独设置步数和 CFG';
 
   @override
@@ -1167,14 +1184,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String styleOverwriteConfirm(String name) {
     return '名为「$name」的风格已存在。是否覆盖？';
-  }
-
-  @override
-  String get styleWorksWith => '适用模型';
-
-  @override
-  String panelStylesHidden(int count, String model) {
-    return '已隐藏 $count 个风格（为 $model 制作）';
   }
 
   @override
@@ -2864,12 +2873,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enhanceNoise => '噪声';
 
   @override
-  String get enhanceSaved => '增强图像已保存到图库';
-
-  @override
-  String get settingsSeedControl => '显示种子控制';
-
-  @override
   String get enhanceMaxChip => '最大 ✨';
 
   @override
@@ -2880,6 +2883,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String enhanceEstimatedCost(int anlas) {
     return '约 $anlas Anlas（估算）';
   }
+
+  @override
+  String get enhanceSaved => '增强图像已保存到图库';
+
+  @override
+  String get settingsSeedControl => '显示种子控制';
 
   @override
   String get settingsSeedControlDesc => '在生成界面显示种子值和随机切换';

@@ -55,6 +55,8 @@ class _ImageDetailViewState extends State<ImageDetailView>
   bool _isLoadingMetadata = true;
   bool _isExporting = false;
   bool _showControls = true;
+  // Persisted: when true the overlays never auto-hide.
+  bool _controlsPinned = false;
   bool _promptExpanded = false;
   Timer? _hideControlsTimer;
   final FocusNode _focusNode = FocusNode();
@@ -102,6 +104,7 @@ class _ImageDetailViewState extends State<ImageDetailView>
     _actionScrollController.addListener(_checkActionOverflow);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkActionOverflow());
     _loadMetadata();
+    _controlsPinned = context.read<PreferencesService>().viewerControlsPinned;
     _scheduleHideControls();
   }
 
@@ -120,9 +123,19 @@ class _ImageDetailViewState extends State<ImageDetailView>
 
   void _scheduleHideControls() {
     _hideControlsTimer?.cancel();
+    if (_controlsPinned) return;
     _hideControlsTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() => _showControls = false);
     });
+  }
+
+  void _toggleControlsPinned() {
+    setState(() {
+      _controlsPinned = !_controlsPinned;
+      _showControls = true;
+    });
+    context.read<PreferencesService>().setViewerControlsPinned(_controlsPinned);
+    _scheduleHideControls();
   }
 
   void _showControlsAndReset() {
@@ -806,6 +819,17 @@ class _ImageDetailViewState extends State<ImageDetailView>
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                              IconButton(
+                                icon: Icon(
+                                  _controlsPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                                  size: mobile ? 22 : 18,
+                                  color: _controlsPinned ? t.accent : t.textSecondary,
+                                ),
+                                tooltip: _controlsPinned
+                                    ? context.l.galleryUnpinControls
+                                    : context.l.galleryPinControls,
+                                onPressed: _toggleControlsPinned,
+                              ),
                               IconButton(
                                 icon: Icon(
                                   item.isFavorite ? Icons.star : Icons.star_outline,

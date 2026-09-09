@@ -395,6 +395,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get galleryCopy => 'Copy';
 
   @override
+  String get galleryCopiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get galleryPinControls => 'Keep controls visible';
+
+  @override
+  String get galleryUnpinControls => 'Auto-hide controls';
+
+  @override
   String get galleryShare => 'Share';
 
   @override
@@ -1186,6 +1195,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get styleSaveAsNew => 'SAVE AS NEW';
 
   @override
+  String get styleWorksWith => 'WORKS WITH';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '$count styles hidden (made for $model)';
+  }
+
+  @override
   String get styleRenderOverride => 'APPLY CUSTOM STEPS AND CFG FOR THIS STYLE';
 
   @override
@@ -1200,14 +1217,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String styleOverwriteConfirm(String name) {
     return 'A STYLE WITH THE NAME \'\'$name\'\' ALREADY EXISTS. OVERWRITE?';
-  }
-
-  @override
-  String get styleWorksWith => 'WORKS WITH';
-
-  @override
-  String panelStylesHidden(int count, String model) {
-    return '$count styles hidden (made for $model)';
   }
 
   @override
@@ -2922,12 +2931,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enhanceNoise => 'NOISE';
 
   @override
-  String get enhanceSaved => 'ENHANCED IMAGE SAVED TO GALLERY';
-
-  @override
-  String get settingsSeedControl => 'Show Seed Control';
-
-  @override
   String get enhanceMaxChip => 'MAX ✨';
 
   @override
@@ -2938,6 +2941,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String enhanceEstimatedCost(int anlas) {
     return '~$anlas ANLAS (EST.)';
   }
+
+  @override
+  String get enhanceSaved => 'ENHANCED IMAGE SAVED TO GALLERY';
+
+  @override
+  String get settingsSeedControl => 'Show Seed Control';
 
   @override
   String get settingsSeedControlDesc =>

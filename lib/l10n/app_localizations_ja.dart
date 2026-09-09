@@ -383,6 +383,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get galleryCopy => 'コピー';
 
   @override
+  String get galleryCopiedToClipboard => 'クリップボードにコピーしました';
+
+  @override
+  String get galleryPinControls => 'コントロールを常に表示';
+
+  @override
+  String get galleryUnpinControls => 'コントロールを自動的に隠す';
+
+  @override
   String get galleryShare => '共有';
 
   @override
@@ -1156,6 +1165,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get styleSaveAsNew => '新規として保存';
 
   @override
+  String get styleWorksWith => '対応モデル';
+
+  @override
+  String panelStylesHidden(int count, String model) {
+    return '$count 件のスタイルを非表示（$model 向け）';
+  }
+
+  @override
   String get styleRenderOverride => 'このスタイルにステップ数と CFG を個別設定';
 
   @override
@@ -1170,14 +1187,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String styleOverwriteConfirm(String name) {
     return '「$name」という名前のスタイルが既に存在します。上書きしますか？';
-  }
-
-  @override
-  String get styleWorksWith => '対応モデル';
-
-  @override
-  String panelStylesHidden(int count, String model) {
-    return '$count 件のスタイルを非表示（$model 向け）';
   }
 
   @override
@@ -2872,12 +2881,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get enhanceNoise => 'ノイズ';
 
   @override
-  String get enhanceSaved => 'エンハンス画像をギャラリーに保存しました';
-
-  @override
-  String get settingsSeedControl => 'シード表示';
-
-  @override
   String get enhanceMaxChip => '最大 ✨';
 
   @override
@@ -2888,6 +2891,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String enhanceEstimatedCost(int anlas) {
     return '約 $anlas Anlas（推定）';
   }
+
+  @override
+  String get enhanceSaved => 'エンハンス画像をギャラリーに保存しました';
+
+  @override
+  String get settingsSeedControl => 'シード表示';
 
   @override
   String get settingsSeedControlDesc => '生成画面にシード値とランダム切り替えを表示';

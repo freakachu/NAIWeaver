@@ -17,6 +17,7 @@ class GalleryPreferences {
   static const String _kStripMetadata = 'strip_metadata_on_export';
   static const String _kDefaultSlideshowId = 'default_slideshow_id';
   static const String _kSlideshowConfigs = 'slideshow_configs';
+  static const String _kViewerControlsPinned = 'gallery_viewer_controls_pinned';
 
   // — Favorites —
 
@@ -108,6 +109,17 @@ class GalleryPreferences {
     } else {
       await _prefs.setString(_kDefaultSlideshowId, id);
     }
+  }
+
+  // — Viewer Controls Pinned —
+  //
+  // When true the full-screen image viewer keeps its top/bottom overlays
+  // visible instead of fading them out after a few seconds of inactivity.
+
+  bool get viewerControlsPinned => _prefs.getBool(_kViewerControlsPinned) ?? false;
+
+  Future<void> setViewerControlsPinned(bool value) async {
+    await _prefs.setBool(_kViewerControlsPinned, value);
   }
 
   // — Slideshow Configs —

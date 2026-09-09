@@ -623,6 +623,7 @@ class PreferencesService {
     // Gallery prefs (non file-path, non-membership)
     'demo_positive_prefix', 'demo_negative_prefix', 'gallery_grid_columns',
     'strip_metadata_on_export', 'slideshow_configs',
+    'gallery_viewer_controls_pinned',
     // Jukebox (settings + opaque blobs like high scores / song durations)
     'jukebox_volume', 'jukebox_soundfont_id', 'jukebox_shuffle',
     'jukebox_repeat', 'jukebox_song_durations',
@@ -702,6 +703,8 @@ class PreferencesService {
   Future<void> setStripMetadataOnExport(bool value) => gallery.setStripMetadataOnExport(value);
   String get slideshowConfigs => gallery.slideshowConfigs;
   Future<void> setSlideshowConfigs(String value) => gallery.setSlideshowConfigs(value);
+  bool get viewerControlsPinned => gallery.viewerControlsPinned;
+  Future<void> setViewerControlsPinned(bool value) => gallery.setViewerControlsPinned(value);
   String? get defaultSlideshowId => gallery.defaultSlideshowId;
   Future<void> setDefaultSlideshowId(String? id) => gallery.setDefaultSlideshowId(id);
 
