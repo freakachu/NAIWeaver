@@ -18,6 +18,11 @@ class CascadeState {
   final String globalInjection;
   final Map<int, Uint8List?> beatPreviews;
 
+  /// Gallery filename for each beat that has been saved this session, so the
+  /// album picker can check membership of the *currently viewed* beat instead
+  /// of whatever was last generated.
+  final Map<int, String> beatSavedBasenames;
+
   /// Free-text narration captions per beat index. Cast-time state for *this*
   /// run (like [characterAppearances]) — narration shown over the beat preview,
   /// never part of the saved cascade and never baked into [beatPreviews] bytes.
@@ -35,6 +40,7 @@ class CascadeState {
     this.globalSceneTags = "",
     this.globalInjection = "",
     this.beatPreviews = const {},
+    this.beatSavedBasenames = const {},
     this.beatCaptions = const {},
     this.captionsVisible = true,
   });
@@ -50,6 +56,7 @@ class CascadeState {
     String? globalSceneTags,
     String? globalInjection,
     Map<int, Uint8List?>? beatPreviews,
+    Map<int, String>? beatSavedBasenames,
     Map<int, String>? beatCaptions,
     bool? captionsVisible,
   }) {
@@ -66,6 +73,7 @@ class CascadeState {
       globalSceneTags: globalSceneTags ?? this.globalSceneTags,
       globalInjection: globalInjection ?? this.globalInjection,
       beatPreviews: beatPreviews ?? this.beatPreviews,
+      beatSavedBasenames: beatSavedBasenames ?? this.beatSavedBasenames,
       beatCaptions: beatCaptions ?? this.beatCaptions,
       captionsVisible: captionsVisible ?? this.captionsVisible,
     );
@@ -135,6 +143,7 @@ class CascadeNotifier extends ChangeNotifier {
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -148,6 +157,7 @@ class CascadeNotifier extends ChangeNotifier {
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -177,6 +187,24 @@ class CascadeNotifier extends ChangeNotifier {
     updated[index] = bytes;
     _state = _state.copyWith(beatPreviews: updated);
     notifyListeners();
+  }
+
+  void setBeatSavedBasename(int index, String basename) {
+    final updated = Map<int, String>.from(_state.beatSavedBasenames);
+    updated[index] = basename;
+    _state = _state.copyWith(beatSavedBasenames: updated);
+    notifyListeners();
+  }
+
+  /// Bind [basename] to whichever beat currently holds [image] in memory.
+  void recordBasenameForImage(Uint8List? image, String basename) {
+    if (image == null) return;
+    for (final entry in _state.beatPreviews.entries) {
+      if (identical(entry.value, image)) {
+        setBeatSavedBasename(entry.key, basename);
+        return;
+      }
+    }
   }
 
   void setBeatCaption(int index, String text) {
@@ -237,6 +265,7 @@ class CascadeNotifier extends ChangeNotifier {
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -342,6 +371,7 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: insertAt,
       beatPreviews: _shiftForInsert(_state.beatPreviews, insertAt),
+      beatSavedBasenames: _shiftForInsert(_state.beatSavedBasenames, insertAt),
       beatCaptions: _shiftForInsert(_state.beatCaptions, insertAt),
     );
     notifyListeners();
@@ -366,6 +396,7 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: newSelectedIndex,
       beatPreviews: _shiftForRemoval(_state.beatPreviews, index),
+      beatSavedBasenames: _shiftForRemoval(_state.beatSavedBasenames, index),
       beatCaptions: _shiftForRemoval(_state.beatCaptions, index),
     );
     notifyListeners();
@@ -385,6 +416,11 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: newIndex,
       beatPreviews: _shiftForReorder(_state.beatPreviews, oldIndex, newIndex),
+      beatSavedBasenames: _shiftForReorder(
+        _state.beatSavedBasenames,
+        oldIndex,
+        newIndex,
+      ),
       beatCaptions: _shiftForReorder(_state.beatCaptions, oldIndex, newIndex),
     );
     notifyListeners();

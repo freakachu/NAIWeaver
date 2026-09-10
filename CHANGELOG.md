@@ -8,6 +8,8 @@
 
 ### Fixes
 - **Cascade prompt fields: tag suggestions actually insert.** Tapping a chip unfocused the field first, so the overlay vanished (and the cursor went invalid) before the insert ran. Suggestion chips now take the tap on pointer-down, and insert still works if the selection is already gone.
+- **Cast sheet character fields follow the selected beat.** Appearance boxes listed every slot in the cascade, even when the current beat had fewer characters. Only slots that exist on the selected beat are shown; switching to a larger beat brings the extra fields back with their values intact.
+- **Cascade album button tracks the viewed beat.** Adding a beat to an album, then tapping another beat, still checked the previous file and refused to add the image on screen. Each beat now remembers its own saved filename: checks are membership of *this* image, clicking an album adds *this* image, and removing it from the gallery album list updates the checks. Cascade (and img2img) generation also records the new file on auto-save instead of keeping a stale name.
 
 ## v0.9.4
 

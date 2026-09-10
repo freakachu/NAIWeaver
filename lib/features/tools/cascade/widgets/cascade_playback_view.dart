@@ -697,9 +697,14 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                 canRequestFocus: false,
                 onTap: () {
                   cascadeNotifier.selectBeat(index);
-                  // Push preview to main viewer if it exists
+                  // Push preview to main viewer if it exists, and adopt that
+                  // beat's saved filename so the album picker checks *this*
+                  // image rather than the last generated one.
                   if (preview != null) {
                     genNotifier.setGeneratedImage(preview);
+                    genNotifier.adoptSavedBasename(
+                      cascadeNotifier.state.beatSavedBasenames[index],
+                    );
                   }
                 },
                 child: Container(
@@ -762,6 +767,10 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                         final result = await genNotifier.generateCascadeBeat(request);
                         if (result != null) {
                           cascadeNotifier.setBeatPreview(currentIndex, result);
+                          final saved = genNotifier.lastSavedBasename;
+                          if (saved != null) {
+                            cascadeNotifier.setBeatSavedBasename(currentIndex, saved);
+                          }
                           if (currentIndex < totalBeats - 1) {
                             cascadeNotifier.selectBeat(currentIndex + 1);
                           }

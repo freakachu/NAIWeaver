@@ -21,6 +21,7 @@ import '../../features/tools/enhance/providers/enhance_notifier.dart';
 import '../../features/tools/director_tools/providers/director_tools_notifier.dart';
 import '../../features/tools/img2img/providers/img2img_notifier.dart';
 import '../../features/tools/tools_hub_screen.dart';
+import '../../features/tools/cascade/providers/cascade_notifier.dart';
 
 /// Quick action buttons (SAVE, EDIT, REMOVE BG, UPSCALE, ENHANCE, DIRECTOR TOOLS)
 /// that float over the generated image preview on the main screen.
@@ -138,7 +139,7 @@ class QuickActionOverlay extends StatelessWidget {
             top: albumTop,
             right: 20,
             child: _ActionButton(
-              onTap: () => _showAlbumPicker(context, notifier, gallery, t),
+              onTap: () => _showAlbumPicker(context, notifier, t),
               icon: Icons.photo_album_outlined,
               label: 'ALBUM',
               color: t.accent,
@@ -406,11 +407,19 @@ class QuickActionOverlay extends StatelessWidget {
 void _showAlbumPicker(
   BuildContext context,
   GenerationNotifier notifier,
-  GalleryNotifier gallery,
   VisionTokens t,
 ) async {
   final basename = await notifier.ensureSavedAndGetBasename();
   if (basename == null || !context.mounted) return;
+
+  // If this image is a cascade beat preview, remember its filename so
+  // switching beats later can restore the right album membership.
+  try {
+    context.read<CascadeNotifier>().recordBasenameForImage(
+          notifier.state.generatedImage,
+          basename,
+        );
+  } catch (_) {}
 
   showModalBottomSheet(
     context: context,
@@ -418,7 +427,23 @@ void _showAlbumPicker(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
     ),
-    builder: (_) => SafeArea(
+    builder: (_) => _AlbumPickerSheet(basename: basename),
+  );
+}
+
+/// Album list for the current generated image. Checks reflect this image's
+/// membership only — not a session-wide "selected album".
+class _AlbumPickerSheet extends StatelessWidget {
+  const _AlbumPickerSheet({required this.basename});
+
+  final String basename;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final gallery = context.watch<GalleryNotifier>();
+
+    return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -432,22 +457,31 @@ void _showAlbumPicker(
           ),
           for (final album in gallery.albums)
             ListTile(
-              leading: Icon(Icons.photo_album, size: 18, color: album.imageBasenames.contains(basename) ? t.accentSuccess : t.textDisabled),
+              leading: Icon(
+                Icons.photo_album,
+                size: 18,
+                color: album.imageBasenames.contains(basename) ? t.accentSuccess : t.textDisabled,
+              ),
               title: Text(album.name, style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(12))),
               trailing: album.imageBasenames.contains(basename)
                   ? Icon(Icons.check, size: 16, color: t.accentSuccess)
                   : null,
               onTap: () {
-                gallery.addToAlbumByBasename(album.id, basename);
+                final alreadyIn = album.imageBasenames.contains(basename);
+                if (!alreadyIn) {
+                  gallery.addToAlbumByBasename(album.id, basename);
+                }
                 Navigator.pop(context);
-                showAppSnackBar(context, 'ADDED TO ${album.name.toUpperCase()}');
+                if (!alreadyIn) {
+                  showAppSnackBar(context, 'ADDED TO ${album.name.toUpperCase()}');
+                }
               },
             ),
           const SizedBox(height: 8),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// SAVE button — keeps text+icon style (different category from tool launchers).

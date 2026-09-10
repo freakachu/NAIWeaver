@@ -66,13 +66,13 @@
 
 ## Cascade System
 - **Multi-Beat Scenes**: Define sequential beats with character slots, environment tags, per-beat prompts, and custom resolutions per beat
-- **Per-Beat Roster**: Add, remove, or drag-reorder character slots on a single beat (max 6); the cast-sheet appearance list tracks the largest beat
+- **Per-Beat Roster**: Add, remove, or drag-reorder character slots on a single beat (max 6); the cast sheet only shows appearance fields for slots on the selected beat
 - **Per-Beat Placement**: MANUAL / AI toggle per beat; the position grid matches the beat's aspect ratio
 - **Action Interactions**: Pick any other character as the partner; cycle forward / mutual / reverse from a single direction button
 - **Prompt Stitching Service**: Assembles final prompts from character appearances + environment + global styles
 - **Character Appearance Casting**: Define a character's look once and reuse across multiple beats
 - **Cascade Library**: Save and load cascade configurations via SharedPreferences
-- **Cascade Playback View**: Inline beat-by-beat playback overlay for cascade mode
+- **Cascade Playback View**: Inline beat-by-beat playback overlay for cascade mode; the ALBUM quick action adds the currently viewed beat and checks albums that image already belongs to
 - **Unsaved Changes Guard**: Save/discard confirmation dialog when leaving the cascade editor with unsaved modifications
 - **Cast Button**: Save the active cascade to library and return to the main screen in one action
 - **Responsive Navigation**: Labeled "Back to Library" and "Exit Cascade" buttons with mobile/desktop sizing

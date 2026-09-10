@@ -75,6 +75,32 @@ void main() {
       expect(s.beatCaptions[3], 'caption-2');
     });
 
+    test('beatSavedBasenames follow clone/remove/reorder like previews', () {
+      final n = _seeded(3);
+      n.setBeatSavedBasename(0, 'a.png');
+      n.setBeatSavedBasename(1, 'b.png');
+      n.setBeatSavedBasename(2, 'c.png');
+
+      n.cloneBeat(0);
+      expect(n.state.beatSavedBasenames[0], 'a.png');
+      expect(n.state.beatSavedBasenames.containsKey(1), isFalse);
+      expect(n.state.beatSavedBasenames[2], 'b.png');
+      expect(n.state.beatSavedBasenames[3], 'c.png');
+
+      n.removeBeat(2); // drop old beat 1 ('b.png')
+      expect(n.state.beatSavedBasenames[0], 'a.png');
+      expect(n.state.beatSavedBasenames.containsKey(1), isFalse);
+      expect(n.state.beatSavedBasenames[2], 'c.png');
+    });
+
+    test('recordBasenameForImage binds the filename to the matching preview', () {
+      final n = _seeded(2);
+      final img = n.state.beatPreviews[1]!;
+      n.recordBasenameForImage(img, 'beat-1.png');
+      expect(n.state.beatSavedBasenames[1], 'beat-1.png');
+      expect(n.state.beatSavedBasenames.containsKey(0), isFalse);
+    });
+
     test('reorderBeats carries each beat\'s preview to its new position', () {
       final n = _seeded(3); // beats 0,1,2
       // Move beat 0 to the end (ReorderableListView convention: newIndex past end).
