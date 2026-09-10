@@ -236,6 +236,14 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
 
   Widget _buildCastingSheet(CascadeNotifier notifier, TagService tagService) {
     final l = context.l;
+    final state = notifier.state;
+    final beatIndex = state.selectedBeatIndex ?? 0;
+    final beats = state.activeCascade?.beats ?? const [];
+    // Appearances are stored cascade-wide by slot index, but a given beat
+    // may have fewer slots. Only show fields that exist on the selected beat.
+    final slotCount = (beatIndex >= 0 && beatIndex < beats.length)
+        ? beats[beatIndex].characterSlots.length
+        : 0;
 
     return Column(
       children: [
@@ -244,7 +252,7 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
           child: ListView.builder(
             primary: false,
             scrollDirection: Axis.horizontal,
-            itemCount: notifier.state.characterAppearances.length,
+            itemCount: slotCount,
             itemBuilder: (context, index) {
               final focusNode = _appearanceFocusNodes.putIfAbsent(index, () => FocusNode());
               return Container(
