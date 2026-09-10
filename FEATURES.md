@@ -54,7 +54,7 @@
 - **Preset Manager**: Full preset editor with inline sliders, character/interaction editing, and reference management
 - **Style Editor**: Create and edit prompt style templates with prefix, suffix, and negative content, *Works with* model targeting, and an optional per-style steps/CFG override
 - **Reference Manager**: Add, configure, and manage Director Reference images with type/strength/fidelity controls
-- **Cascade Editor**: Multi-beat sequential scene generation with character slots, environment tags, prompt stitching, custom resolutions per beat, and Cast button for quick save-and-return
+- **Cascade Editor**: Multi-beat sequential scene generation with per-beat character slots (add / remove / reorder), environment tags, prompt stitching, custom resolutions, per-beat MANUAL / AI placement, and Cast button for quick save-and-return
 - **Img2Img Editor**: Source image loading, multi-layer canvas editor integration, blank canvas option with custom resolutions, brush-based mask painting, strength/noise controls, client-side inpainting
 - **Director Tools**: 6 server-side image augmentation tools (Remove BG, Line Art, Sketch, Colorize, Emotion, Declutter) via NovelAI's augment-image API
 - **Enhance**: Quick img2img refinement with strength, noise, and scale controls (plus MAX ✨ on V5) — accessible from Tools Hub, image viewer, and gallery detail view
@@ -66,6 +66,9 @@
 
 ## Cascade System
 - **Multi-Beat Scenes**: Define sequential beats with character slots, environment tags, per-beat prompts, and custom resolutions per beat
+- **Per-Beat Roster**: Add, remove, or drag-reorder character slots on a single beat (max 6); the cast-sheet appearance list tracks the largest beat
+- **Per-Beat Placement**: MANUAL / AI toggle per beat; the position grid matches the beat's aspect ratio
+- **Action Interactions**: Pick any other character as the partner; cycle forward / mutual / reverse from a single direction button
 - **Prompt Stitching Service**: Assembles final prompts from character appearances + environment + global styles
 - **Character Appearance Casting**: Define a character's look once and reuse across multiple beats
 - **Cascade Library**: Save and load cascade configurations via SharedPreferences

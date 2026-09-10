@@ -12,15 +12,15 @@ import 'package:naiweaver/features/tools/cascade/providers/cascade_notifier.dart
 Uint8List _preview(int tag) => Uint8List.fromList([tag]);
 
 CascadeBeat _beat() => CascadeBeat(
-      characterSlots: [BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2))],
-      environmentTags: '',
-    );
+  characterSlots: [BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2))],
+  environmentTags: '',
+);
 
 PromptCascade _cascade(int beatCount) => PromptCascade(
-      name: 'test',
-      characterCount: 1,
-      beats: List.generate(beatCount, (_) => _beat()),
-    );
+  name: 'test',
+  characterCount: 1,
+  beats: List.generate(beatCount, (_) => _beat()),
+);
 
 /// Seeds a notifier with [beatCount] beats and a preview+caption on each,
 /// tagged by index so re-association is observable.
@@ -39,7 +39,9 @@ void main() {
 
   group('CascadeNotifier cast-time map remapping', () {
     test('removeBeat drops the removed beat and shifts later entries down', () {
-      final n = _seeded(4); // beats 0,1,2,3 each with preview/caption tagged by index
+      final n = _seeded(
+        4,
+      ); // beats 0,1,2,3 each with preview/caption tagged by index
       n.removeBeat(1);
 
       final s = n.state;
@@ -128,6 +130,100 @@ void main() {
       expect(n.state.globalSceneTags, '');
       expect(n.state.beatPreviews, isEmpty);
       expect(n.state.beatCaptions, isEmpty);
+    });
+  });
+
+  group('CascadeNotifier per-beat characters', () {
+    test('addCharacterToActiveBeat grows the beat and the cast roster', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1);
+
+      n.addCharacterToActiveBeat();
+
+      final beat = n.state.activeCascade!.beats.first;
+      expect(beat.characterSlots.length, 2);
+      expect(n.state.activeCascade!.characterCount, 2);
+      expect(n.state.characterAppearances.length, 2);
+    });
+
+    test(
+      'removeCharacterFromActiveBeat drops the slot and shrinks roster when unused',
+      () {
+        final n = CascadeNotifier();
+        n.createNewCascade('cast', 2);
+        n.updateAppearance(1, 'second');
+
+        n.removeCharacterFromActiveBeat(1);
+
+        expect(n.state.activeCascade!.beats.first.characterSlots.length, 1);
+        expect(n.state.activeCascade!.characterCount, 1);
+        expect(n.state.characterAppearances, ['']);
+      },
+    );
+
+    test(
+      'removing a slot from one beat does not shrink roster used by another beat',
+      () {
+        final n = CascadeNotifier();
+        n.createNewCascade('cast', 2);
+        n.addBeat();
+        n.selectBeat(0);
+        n.removeCharacterFromActiveBeat(1);
+
+        expect(n.state.activeCascade!.beats[0].characterSlots.length, 1);
+        expect(n.state.activeCascade!.beats[1].characterSlots.length, 2);
+        expect(n.state.activeCascade!.characterCount, 2);
+        expect(n.state.characterAppearances.length, 2);
+      },
+    );
+
+    test('reorderCharactersInActiveBeat swaps slot data', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      final beat = n.state.activeCascade!.beats.first;
+      n.updateActiveBeat(
+        beat.copyWith(
+          characterSlots: [
+            beat.characterSlots[0].copyWith(positivePrompt: 'alpha'),
+            beat.characterSlots[1].copyWith(positivePrompt: 'beta'),
+          ],
+        ),
+      );
+
+      n.reorderCharactersInActiveBeat(0, 2);
+
+      final slots = n.state.activeCascade!.beats.first.characterSlots;
+      expect(slots.map((s) => s.positivePrompt).toList(), ['beta', 'alpha']);
+    });
+
+    test('setActiveBeatUseCoords overrides cascade-level placement', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1, useCoords: true);
+      expect(
+        n.state.activeCascade!.effectiveUseCoords(
+          n.state.activeCascade!.beats.first,
+        ),
+        isTrue,
+      );
+
+      n.setActiveBeatUseCoords(false);
+
+      final beat = n.state.activeCascade!.beats.first;
+      expect(beat.useCoords, isFalse);
+      expect(n.state.activeCascade!.effectiveUseCoords(beat), isFalse);
+      expect(n.state.activeCascade!.useCoords, isTrue);
+    });
+
+    test('addBeat copies the last beat slot count and placement', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1, useCoords: true);
+      n.addCharacterToActiveBeat();
+      n.setActiveBeatUseCoords(false);
+      n.addBeat();
+
+      final added = n.state.activeCascade!.beats.last;
+      expect(added.characterSlots.length, 2);
+      expect(added.useCoords, isFalse);
     });
   });
 }

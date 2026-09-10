@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Cascade editor: per-beat roster and placement.** Add, remove, or drag-reorder character slots on a single beat (the cast sheet grows to the largest beat). A MANUAL / AI toggle on the slots header overrides placement per beat; older cascades keep the cascade-level default until you flip it. The position grid / freeform canvas now matches the beat's aspect ratio instead of a square.
+- **Cascade interactions pick any partner.** The link button on a slot opens a sheet with WITH chips for the other characters on that beat, and a compact direction button that cycles **A → B** → **A ↔ B** (mutual) → **A ← B** (reverse, same character order, flipped arrow).
+
+### Fixes
+- **Cascade prompt fields: tag suggestions actually insert.** Tapping a chip unfocused the field first, so the overlay vanished (and the cursor went invalid) before the insert ran. Suggestion chips now take the tap on pointer-down, and insert still works if the selection is already gone.
+
 ## v0.9.4
 
 ### New

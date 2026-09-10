@@ -741,7 +741,7 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                             appearances: state.characterAppearances,
                             globalSceneTags: state.globalSceneTags,
                             globalStyle: state.globalInjection,
-                            useCoords: state.activeCascade!.useCoords,
+                            useCoords: state.activeCascade!.effectiveUseCoords(currentBeat),
                             activeStyleNames: currentBeat.activeStyleNames,
                             availableStyles: genNotifier.state.styles,
                           );

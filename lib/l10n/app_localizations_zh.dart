@@ -1733,6 +1733,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cascadeLinkAction => '关联动作';
 
   @override
+  String get cascadeAddCharacter => '添加角色';
+
+  @override
+  String get cascadeRemoveCharacter => '移除角色';
+
+  @override
+  String get cascadePlacementManual => '手动';
+
+  @override
+  String get cascadePlacementAi => 'AI';
+
+  @override
+  String get cascadeNoCharactersInBeat => '此镜头没有角色。添加后即可放置或填写提示词。';
+
+  @override
   String get cascadeBeatSettings => '镜头设置';
 
   @override

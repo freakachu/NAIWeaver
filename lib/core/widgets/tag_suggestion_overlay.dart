@@ -35,7 +35,8 @@ class TagSuggestionOverlay extends StatefulWidget {
     this.selectedIndex = -1,
   });
 
-  static Color tagColor(DanbooruTag tag) => TagCategories.colorFor(tag.typeName);
+  static Color tagColor(DanbooruTag tag) =>
+      TagCategories.colorFor(tag.typeName);
 
   @override
   State<TagSuggestionOverlay> createState() => _TagSuggestionOverlayState();
@@ -85,7 +86,9 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                   border: Border.all(color: t.borderMedium),
                 ),
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.3,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,9 +98,14 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                   child: Listener(
                     onPointerSignal: (pointerSignal) {
                       if (pointerSignal is PointerScrollEvent) {
-                        final newOffset = scrollController.offset + pointerSignal.scrollDelta.dy;
+                        final newOffset =
+                            scrollController.offset +
+                            pointerSignal.scrollDelta.dy;
                         scrollController.jumpTo(
-                          newOffset.clamp(0.0, scrollController.position.maxScrollExtent),
+                          newOffset.clamp(
+                            0.0,
+                            scrollController.position.maxScrollExtent,
+                          ),
                         );
                       }
                     },
@@ -107,14 +115,23 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                       child: Wrap(
                         spacing: 6,
                         runSpacing: 4,
-                        children: List.generate(widget.suggestions.length, (index) {
+                        children: List.generate(widget.suggestions.length, (
+                          index,
+                        ) {
                           final tag = widget.suggestions[index];
                           final color = TagSuggestionOverlay.tagColor(tag);
                           final isHighlighted = index == widget.selectedIndex;
-                          return InkWell(
-                            onTap: () => _selectTag(tag),
+                          // onTapDown fires before the originating TextField
+                          // unfocuses; onTap often never runs because the
+                          // overlay is rebuilt away on focus loss.
+                          return GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapDown: (_) => _selectTag(tag),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: isHighlighted
                                     ? color.withValues(alpha: 0.35)
@@ -136,7 +153,12 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                                         color: color,
                                         fontSize: t.fontSize(10),
                                         fontWeight: FontWeight.bold,
-                                        shadows: const [Shadow(color: Colors.black54, blurRadius: 1)],
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 1,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     Text(
@@ -151,7 +173,12 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                                       style: TextStyle(
                                         color: color.withValues(alpha: 0.6),
                                         fontSize: t.fontSize(9),
-                                        shadows: const [Shadow(color: Colors.black54, blurRadius: 1)],
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 1,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ] else
@@ -161,13 +188,21 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                                         color: color,
                                         fontSize: t.fontSize(10),
                                         fontWeight: FontWeight.bold,
-                                        shadows: const [Shadow(color: Colors.black54, blurRadius: 1)],
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 1,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   if (tag.sourceId != null) ...[
                                     const SizedBox(width: 4),
                                     Text(
-                                      context.read<TagService>().sourceBadge(tag.sourceId) ?? '',
+                                      context.read<TagService>().sourceBadge(
+                                            tag.sourceId,
+                                          ) ??
+                                          '',
                                       style: TextStyle(
                                         color: color.withValues(alpha: 0.55),
                                         fontSize: t.fontSize(7),
@@ -175,7 +210,9 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
                                       ),
                                     ),
                                   ],
-                                  if (!context.read<PreferencesService>().hideTagValues &&
+                                  if (!context
+                                          .read<PreferencesService>()
+                                          .hideTagValues &&
                                       tag.typeName != 'category_shortcut' &&
                                       tag.typeName != 'saved_character') ...[
                                     const SizedBox(width: 4),
@@ -229,7 +266,9 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                honor ? Icons.check_box_outlined : Icons.check_box_outline_blank,
+                honor
+                    ? Icons.check_box_outlined
+                    : Icons.check_box_outline_blank,
                 size: 13,
                 color: honor ? t.textSecondary : t.textTertiary,
               ),

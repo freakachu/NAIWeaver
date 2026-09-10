@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prompt_cascade.dart';
@@ -54,8 +55,12 @@ class CascadeState {
   }) {
     return CascadeState(
       savedCascades: savedCascades ?? this.savedCascades,
-      activeCascade: clearActiveCascade ? null : (activeCascade ?? this.activeCascade),
-      selectedBeatIndex: clearSelectedBeatIndex ? null : (selectedBeatIndex ?? this.selectedBeatIndex),
+      activeCascade: clearActiveCascade
+          ? null
+          : (activeCascade ?? this.activeCascade),
+      selectedBeatIndex: clearSelectedBeatIndex
+          ? null
+          : (selectedBeatIndex ?? this.selectedBeatIndex),
       isLoading: isLoading ?? this.isLoading,
       characterAppearances: characterAppearances ?? this.characterAppearances,
       globalSceneTags: globalSceneTags ?? this.globalSceneTags,
@@ -108,7 +113,9 @@ class CascadeNotifier extends ChangeNotifier {
   Future<void> _saveToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = json.encode(_state.savedCascades.map((e) => e.toJson()).toList());
+      final jsonString = json.encode(
+        _state.savedCascades.map((e) => e.toJson()).toList(),
+      );
       await prefs.setString(_storageKey, jsonString);
     } catch (e) {
       debugPrint('Error saving cascades: $e');
@@ -122,7 +129,9 @@ class CascadeNotifier extends ChangeNotifier {
       clearActiveCascade: cascade == null,
       selectedBeatIndex: cascade != null && cascade.beats.isNotEmpty ? 0 : null,
       clearSelectedBeatIndex: cascade == null,
-      characterAppearances: cascade != null ? List.generate(cascade.characterCount, (_) => "") : [],
+      characterAppearances: cascade != null
+          ? List.generate(cascade.characterCount, (_) => "")
+          : [],
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
@@ -187,12 +196,19 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void selectBeat(int index) {
-    if (_state.activeCascade == null || index < 0 || index >= _state.activeCascade!.beats.length) return;
+    if (_state.activeCascade == null ||
+        index < 0 ||
+        index >= _state.activeCascade!.beats.length)
+      return;
     _state = _state.copyWith(selectedBeatIndex: index);
     notifyListeners();
   }
 
-  void createNewCascade(String name, int characterCount, {bool useCoords = true}) {
+  void createNewCascade(
+    String name,
+    int characterCount, {
+    bool useCoords = true,
+  }) {
     final newCascade = PromptCascade(
       name: name,
       characterCount: characterCount,
@@ -202,9 +218,10 @@ class CascadeNotifier extends ChangeNotifier {
         CascadeBeat(
           characterSlots: List.generate(
             characterCount,
-            (_) => BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2)),
+            (_) => BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5)),
           ),
           environmentTags: "",
+          useCoords: useCoords,
         ),
       ],
     );
@@ -228,12 +245,16 @@ class CascadeNotifier extends ChangeNotifier {
   void saveActiveToLibrary() {
     if (_state.activeCascade == null) return;
 
-    final existingIndex = _state.savedCascades.indexWhere((c) => c.name == _state.activeCascade!.name);
+    final existingIndex = _state.savedCascades.indexWhere(
+      (c) => c.name == _state.activeCascade!.name,
+    );
     List<PromptCascade> updatedList;
     if (existingIndex >= 0) {
-      updatedList = List<PromptCascade>.from(_state.savedCascades)..[existingIndex] = _state.activeCascade!;
+      updatedList = List<PromptCascade>.from(_state.savedCascades)
+        ..[existingIndex] = _state.activeCascade!;
     } else {
-      updatedList = List<PromptCascade>.from(_state.savedCascades)..add(_state.activeCascade!);
+      updatedList = List<PromptCascade>.from(_state.savedCascades)
+        ..add(_state.activeCascade!);
     }
 
     _savedSnapshot = json.encode(_state.activeCascade!.toJson());
@@ -243,7 +264,9 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void deleteCascade(String name) {
-    final updatedList = _state.savedCascades.where((c) => c.name != name).toList();
+    final updatedList = _state.savedCascades
+        .where((c) => c.name != name)
+        .toList();
     _state = _state.copyWith(savedCascades: updatedList);
     if (_state.activeCascade?.name == name) {
       _state = _state.copyWith(activeCascade: null, selectedBeatIndex: null);
@@ -254,18 +277,25 @@ class CascadeNotifier extends ChangeNotifier {
 
   void addBeat() {
     if (_state.activeCascade == null) return;
-    
+
+    final last = _state.activeCascade!.beats.isNotEmpty
+        ? _state.activeCascade!.beats.last
+        : null;
+    final slotCount =
+        last?.characterSlots.length ?? _state.activeCascade!.characterCount;
     final newBeat = CascadeBeat(
       characterSlots: List.generate(
-        _state.activeCascade!.characterCount,
-        (_) => BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2)),
+        slotCount,
+        (_) => BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5)),
       ),
-      environmentTags: _state.activeCascade!.beats.isNotEmpty 
-          ? _state.activeCascade!.beats.last.environmentTags 
-          : "",
+      environmentTags: last?.environmentTags ?? "",
+      width: last?.width ?? 832,
+      height: last?.height ?? 1216,
+      useCoords: last?.useCoords ?? _state.activeCascade!.useCoords,
     );
-    
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..add(newBeat);
+
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..add(newBeat);
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: updatedBeats.length - 1,
@@ -274,16 +304,23 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void cloneBeat(int index) {
-    if (_state.activeCascade == null || index < 0 || index >= _state.activeCascade!.beats.length) return;
+    if (_state.activeCascade == null ||
+        index < 0 ||
+        index >= _state.activeCascade!.beats.length)
+      return;
 
     final sourceBeat = _state.activeCascade!.beats[index];
     final clonedBeat = CascadeBeat(
-      characterSlots: sourceBeat.characterSlots.map((s) => BeatCharacterSlot(
-        position: s.position,
-        actionTags: List.of(s.actionTags),
-        positivePrompt: s.positivePrompt,
-        negativePrompt: s.negativePrompt,
-      )).toList(),
+      characterSlots: sourceBeat.characterSlots
+          .map(
+            (s) => BeatCharacterSlot(
+              position: s.position,
+              actionTags: List.of(s.actionTags),
+              positivePrompt: s.positivePrompt,
+              negativePrompt: s.negativePrompt,
+            ),
+          )
+          .toList(),
       sceneTags: sourceBeat.sceneTags,
       environmentTags: sourceBeat.environmentTags,
       sampler: sourceBeat.sampler,
@@ -292,9 +329,11 @@ class CascadeNotifier extends ChangeNotifier {
       width: sourceBeat.width,
       height: sourceBeat.height,
       activeStyleNames: List.of(sourceBeat.activeStyleNames),
+      useCoords: sourceBeat.useCoords,
     );
 
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..insert(index + 1, clonedBeat);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..insert(index + 1, clonedBeat);
     // The cloned beat starts un-generated and un-captioned. Shift every cast-time
     // map entry at or after the insertion point up by one so previews/captions
     // stay glued to their beats.
@@ -309,9 +348,11 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void removeBeat(int index) {
-    if (_state.activeCascade == null || _state.activeCascade!.beats.length <= 1) return;
+    if (_state.activeCascade == null || _state.activeCascade!.beats.length <= 1)
+      return;
 
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..removeAt(index);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..removeAt(index);
     int? newSelectedIndex = _state.selectedBeatIndex;
     if (newSelectedIndex != null) {
       if (newSelectedIndex >= updatedBeats.length) {
@@ -378,7 +419,11 @@ class CascadeNotifier extends ChangeNotifier {
   /// Re-key an index-keyed cast-time map under the same removeAt(oldIndex) +
   /// insert(newIndex) permutation applied to the beats list, so each beat's
   /// preview/caption follows it to its new position.
-  static Map<int, T> _shiftForReorder<T>(Map<int, T> map, int oldIndex, int newIndex) {
+  static Map<int, T> _shiftForReorder<T>(
+    Map<int, T> map,
+    int oldIndex,
+    int newIndex,
+  ) {
     final out = <int, T>{};
     map.forEach((k, v) {
       int nk;
@@ -400,8 +445,9 @@ class CascadeNotifier extends ChangeNotifier {
   /// "apply to all beats" action — the fixed-shot / changing-action workflow.
   void applySceneToAllBeats(String sceneTags) {
     if (_state.activeCascade == null) return;
-    final updatedBeats =
-        _state.activeCascade!.beats.map((b) => b.copyWith(sceneTags: sceneTags)).toList();
+    final updatedBeats = _state.activeCascade!.beats
+        .map((b) => b.copyWith(sceneTags: sceneTags))
+        .toList();
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
     );
@@ -409,14 +455,92 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void updateActiveBeat(CascadeBeat updatedBeat) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null) return;
-    
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+      return;
+
     final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
     updatedBeats[_state.selectedBeatIndex!] = updatedBeat;
-    
+
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
     );
     notifyListeners();
+  }
+
+  static BeatCharacterSlot _emptySlot() =>
+      BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5));
+
+  /// Keeps [PromptCascade.characterCount] and cast-time appearances in sync
+  /// with the largest per-beat slot list.
+  void _syncCastRoster(PromptCascade cascade) {
+    final maxSlots = cascade.beats.fold<int>(
+      0,
+      (m, b) => math.max(m, b.characterSlots.length),
+    );
+    var appearances = List<String>.from(_state.characterAppearances);
+    while (appearances.length < maxSlots) {
+      appearances.add('');
+    }
+    if (appearances.length > maxSlots) {
+      appearances = appearances.sublist(0, maxSlots);
+    }
+    _state = _state.copyWith(
+      activeCascade: cascade.copyWith(characterCount: maxSlots),
+      characterAppearances: appearances,
+    );
+  }
+
+  void addCharacterToActiveBeat() {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+      return;
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    if (beat.characterSlots.length >= PromptCascade.maxCharacterSlots) return;
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots)
+      ..add(_emptySlot());
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
+    updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
+      characterSlots: updatedSlots,
+    );
+    _syncCastRoster(_state.activeCascade!.copyWith(beats: updatedBeats));
+    notifyListeners();
+  }
+
+  void removeCharacterFromActiveBeat(int index) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+      return;
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    if (index < 0 || index >= beat.characterSlots.length) return;
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots)
+      ..removeAt(index);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
+    updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
+      characterSlots: updatedSlots,
+    );
+    _syncCastRoster(_state.activeCascade!.copyWith(beats: updatedBeats));
+    notifyListeners();
+  }
+
+  void reorderCharactersInActiveBeat(int oldIndex, int newIndex) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+      return;
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    if (oldIndex < 0 || oldIndex >= beat.characterSlots.length) return;
+    var dest = newIndex;
+    if (dest > oldIndex) dest -= 1;
+    if (dest < 0 || dest >= beat.characterSlots.length) return;
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
+    final item = updatedSlots.removeAt(oldIndex);
+    updatedSlots.insert(dest, item);
+    updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+  }
+
+  void setActiveBeatUseCoords(bool useCoords) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+      return;
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    updateActiveBeat(beat.copyWith(useCoords: useCoords));
   }
 }

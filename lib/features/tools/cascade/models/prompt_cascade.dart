@@ -1,11 +1,17 @@
 import 'cascade_beat.dart';
 
 class PromptCascade {
+  /// Upper bound matching the create-cascade slot picker (0–6).
+  static const int maxCharacterSlots = 6;
+
   final String name;
   final int characterCount;
   final List<CascadeBeat> beats;
   final Map<String, dynamic> metadata;
   final bool useCoords;
+
+  /// Manual placement for [beat]: the beat's own override, else this cascade.
+  bool effectiveUseCoords(CascadeBeat beat) => beat.useCoords ?? useCoords;
 
   PromptCascade({
     required this.name,
@@ -16,22 +22,20 @@ class PromptCascade {
   });
 
   factory PromptCascade.fromJson(Map<String, dynamic> json) => PromptCascade(
-        name: json['name'],
-        characterCount: json['characterCount'],
-        beats: (json['beats'] as List)
-            .map((e) => CascadeBeat.fromJson(e))
-            .toList(),
-        metadata: json['metadata'] ?? {},
-        useCoords: json['useCoords'] ?? true,
-      );
+    name: json['name'],
+    characterCount: json['characterCount'],
+    beats: (json['beats'] as List).map((e) => CascadeBeat.fromJson(e)).toList(),
+    metadata: json['metadata'] ?? {},
+    useCoords: json['useCoords'] ?? true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'characterCount': characterCount,
-        'beats': beats.map((e) => e.toJson()).toList(),
-        'metadata': metadata,
-        'useCoords': useCoords,
-      };
+    'name': name,
+    'characterCount': characterCount,
+    'beats': beats.map((e) => e.toJson()).toList(),
+    'metadata': metadata,
+    'useCoords': useCoords,
+  };
 
   PromptCascade copyWith({
     String? name,
