@@ -414,12 +414,10 @@ void _showAlbumPicker(
 
   // If this image is a cascade beat preview, remember its filename so
   // switching beats later can restore the right album membership.
-  try {
-    context.read<CascadeNotifier>().recordBasenameForImage(
-          notifier.state.generatedImage,
-          basename,
-        );
-  } catch (_) {}
+  context.read<CascadeNotifier>().recordBasenameForImage(
+        notifier.state.generatedImage,
+        basename,
+      );
 
   showModalBottomSheet(
     context: context,

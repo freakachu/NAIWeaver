@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/theme/vision_tokens.dart';
 import '../../../core/widgets/tag_suggestion_overlay.dart';
 import '../../../core/services/tag_service.dart';
 import '../models/nai_character.dart';
@@ -110,15 +111,17 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
     if (!mounted) return;
     final text = _actionController.text;
     if (text.isEmpty) {
-      if (_actionSuggestions.isNotEmpty)
+      if (_actionSuggestions.isNotEmpty) {
         setState(() => _actionSuggestions = []);
+      }
       return;
     }
     String query = text;
     if (query.startsWith('/f ')) query = query.substring(3);
     if (query.length < 2) {
-      if (_actionSuggestions.isNotEmpty)
+      if (_actionSuggestions.isNotEmpty) {
         setState(() => _actionSuggestions = []);
+      }
       return;
     }
     final suggestions =
@@ -237,7 +240,7 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
     return '$src \u2192 $tgt';
   }
 
-  Widget _buildAnchorDirection(dynamic t) {
+  Widget _buildAnchorDirection(VisionTokens t) {
     final anchor = widget.anchorIndex!;
     final partners = [
       for (int i = 0; i < widget.characters.length; i++)
