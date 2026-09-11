@@ -35,7 +35,7 @@ Upload reference images to guide character appearance or artistic style. Support
 Apply the aesthetic "vibe" of reference images to generations. Each vibe has independent strength and information extraction controls, allowing fine-tuned style influence without precise character matching.
 
 ### Cascade System
-Sequential scene generation. Define setting, placement, actions, emotion, and state for each scene. Once your story is made, use the Cast button to return to the main editor, add your characters, and watch them play out the scenes. Includes unsaved-changes detection with save/discard confirmation.
+Sequential scene generation. Define setting, placement, actions, emotion, and state for each scene — add, remove, or reorder characters per beat, pick who interacts with whom, and toggle AI vs manual placement per beat. Once your story is made, use the Cast button to return to the main editor, add your characters, and watch them play out the scenes. The cast sheet only prompts for characters on the selected beat, and the ALBUM action adds that beat's image. Includes unsaved-changes detection with save/discard confirmation.
 
 ### Characters
 Build reusable personas with split appearance buckets (base / face / hair / body, plus NSFW sub-buckets) and a per-character closet of outfits — each character is one local JSON file, with its closet stored separately so wardrobes stay portable. A ✨ generator drafts a character and a starter wardrobe from a free-text vibe + era + location (a catalogue of historical era presets, period-correct undergarment rules that are gender- and era-aware) and an optional artist style tag. Outfits track per-slot dressing state (intact → removed) with automatic concealment of layered pieces. Saved characters appear in the tag autocomplete as `[Name]` and `[Name (Outfit)]`, expanding into the full body + outfit tag block, with per-character and per-outfit negative tags routed automatically. **Photoshoot mode** dresses a character in-place for a session — pull-up Dress / Scene / Prompt drawer, curated pose and environment presets, large image preview, and one-tap generate — without disturbing the saved closet. Requires Text Generation (a NovelAI text model) for the AI generators.
@@ -83,7 +83,7 @@ A NovelAI text-model tool with a continue-style multiline input, model picker, f
 | **Style Editor** | Prompt style templates with prefix, suffix, and negative content; *Works with* V4.5 / V5 targeting, optional per-style steps/CFG, and Save changes / Save as new |
 | **Reference Manager** | Director Reference management with type, strength, and fidelity controls |
 | **Characters** | Saved-persona library with appearance buckets, per-character closets, outfit dressing-state, AI character/wardrobe generation, and photoshoot mode |
-| **Cascade Editor** | Multi-beat sequential scene generation with character slots and prompt stitching |
+| **Cascade Editor** | Multi-beat sequential scene generation with per-beat character slots, interactions, and prompt stitching |
 | **Img2Img Editor** | Source image loading, canvas editor, custom resolutions, brush-based mask painting with customizable mask color, opacity, and patterns, and inpainting |
 | **Director Tools** | 6 server-side image augmentation tools (Remove BG, Line Art, Sketch, Colorize, Emotion, Declutter) |
 | **Enhance** | Quick img2img refinement with strength, noise, and scale controls; MAX ✨ on V5 for a ~3.1 MP result |
@@ -212,6 +212,7 @@ These projects were great resources and inspiration:
 
 - [@baisumang](https://github.com/baisumang) — Simplified Chinese translation
 - [@andreiagmu](https://github.com/andreiagmu)
+- [@freakachu](https://github.com/freakachu) — Cascade editor: per-beat roster, placement, and interaction targeting
 
 ## License
 

@@ -1739,6 +1739,30 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cascadeLinkAction => 'アクションをリンク';
 
   @override
+  String cascadeCastMemberN(int n) {
+    return 'キャラクター $n';
+  }
+
+  @override
+  String get cascadeNewCharacter => '新しいキャラクター';
+
+  @override
+  String get cascadeAddCharacter => 'キャラクターを追加';
+
+  @override
+  String get cascadeRemoveCharacter => 'キャラクターを削除';
+
+  @override
+  String get cascadePlacementManual => '手動';
+
+  @override
+  String get cascadePlacementAi => 'AI';
+
+  @override
+  String get cascadeNoCharactersInBeat =>
+      'このビートにはキャラクターがいません。追加して配置やプロンプトを設定できます。';
+
+  @override
   String get cascadeBeatSettings => 'ビート設定';
 
   @override

@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 import '../../../../core/l10n/l10n_extensions.dart';
 import '../../../../core/models/nai_model.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/theme/vision_tokens.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/utils/app_snackbar.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/tag_suggestion_helper.dart';
 import '../../../../core/widgets/tag_suggestion_overlay.dart';
 import '../providers/cascade_notifier.dart';
 import '../models/cascade_beat.dart';
+import '../models/prompt_cascade.dart';
 import '../../../characters/providers/character_library_notifier.dart';
 import '../../../generation/widgets/nai_grid_selector.dart';
 import '../../../generation/widgets/action_interaction_sheet.dart';
@@ -77,10 +80,13 @@ class _DirectorViewState extends State<DirectorView> {
   }
 
   void _onFocusChanged() {
-    // Clear suggestions when all prompt fields lose focus
+    // Clear suggestions when all prompt fields lose focus. The overlay is a
+    // TextFieldTapRegion, so tapping a chip does not count as tapping outside
+    // the field and never triggers this path.
     Future.microtask(() {
       if (!mounted) return;
-      final anyFocused = _sceneFocusNode.hasFocus ||
+      final anyFocused =
+          _sceneFocusNode.hasFocus ||
           _envFocusNode.hasFocus ||
           _posFocusNodes.values.any((f) => f.hasFocus) ||
           _negFocusNodes.values.any((f) => f.hasFocus);
@@ -90,7 +96,12 @@ class _DirectorViewState extends State<DirectorView> {
     });
   }
 
-  void _handleTagInput(TextEditingController controller, ValueChanged<String> onChanged, String value, TagService? tagService) {
+  void _handleTagInput(
+    TextEditingController controller,
+    ValueChanged<String> onChanged,
+    String value,
+    TagService? tagService,
+  ) {
     onChanged(value);
     _activeSuggestionController = controller;
     _activeSuggestionOnChanged = onChanged;
@@ -121,27 +132,52 @@ class _DirectorViewState extends State<DirectorView> {
     setState(() => _suggestions = []);
   }
 
-  void _syncControllers(CascadeBeat beat, int beatIndex, int charCount) {
-    if (_lastBeatIndex != beatIndex) {
-      _sceneController.text = beat.sceneTags;
-      _envController.text = beat.environmentTags;
-      for (int i = 0; i < charCount; i++) {
-        final pos = _posControllers.putIfAbsent(i, () => TextEditingController());
-        final neg = _negControllers.putIfAbsent(i, () => TextEditingController());
-        if (!_posFocusNodes.containsKey(i)) {
-          final fn = FocusNode();
-          fn.addListener(_onFocusChanged);
-          _posFocusNodes[i] = fn;
-        }
-        if (!_negFocusNodes.containsKey(i)) {
-          final fn = FocusNode();
-          fn.addListener(_onFocusChanged);
-          _negFocusNodes[i] = fn;
-        }
-        pos.text = beat.characterSlots[i].positivePrompt;
-        neg.text = beat.characterSlots[i].negativePrompt;
+  void _ensureSlotControllers(int slotCount) {
+    for (int i = 0; i < slotCount; i++) {
+      _posControllers.putIfAbsent(i, () => TextEditingController());
+      _negControllers.putIfAbsent(i, () => TextEditingController());
+      if (!_posFocusNodes.containsKey(i)) {
+        final fn = FocusNode();
+        fn.addListener(_onFocusChanged);
+        _posFocusNodes[i] = fn;
       }
-      _lastBeatIndex = beatIndex;
+      if (!_negFocusNodes.containsKey(i)) {
+        final fn = FocusNode();
+        fn.addListener(_onFocusChanged);
+        _negFocusNodes[i] = fn;
+      }
+    }
+  }
+
+  void _assignIfChanged(TextEditingController controller, String value) {
+    if (controller.text != value) controller.text = value;
+  }
+
+  void _syncControllers(CascadeBeat beat, int beatIndex) {
+    final slotCount = beat.characterSlots.length;
+    _ensureSlotControllers(slotCount);
+    final beatChanged = _lastBeatIndex != beatIndex;
+    _lastBeatIndex = beatIndex;
+
+    if (beatChanged || !_sceneFocusNode.hasFocus) {
+      _assignIfChanged(_sceneController, beat.sceneTags);
+    }
+    if (beatChanged || !_envFocusNode.hasFocus) {
+      _assignIfChanged(_envController, beat.environmentTags);
+    }
+    for (int i = 0; i < slotCount; i++) {
+      if (beatChanged || !_posFocusNodes[i]!.hasFocus) {
+        _assignIfChanged(
+          _posControllers[i]!,
+          beat.characterSlots[i].positivePrompt,
+        );
+      }
+      if (beatChanged || !_negFocusNodes[i]!.hasFocus) {
+        _assignIfChanged(
+          _negControllers[i]!,
+          beat.characterSlots[i].negativePrompt,
+        );
+      }
     }
   }
 
@@ -154,15 +190,23 @@ class _DirectorViewState extends State<DirectorView> {
       builder: (context, notifier, child) {
         final state = notifier.state;
         if (state.activeCascade == null || state.selectedBeatIndex == null) {
-          return Center(child: Text(l.cascadeNoBeatSelected, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(10), letterSpacing: 2)));
+          return Center(
+            child: Text(
+              l.cascadeNoBeatSelected,
+              style: TextStyle(
+                color: t.textDisabled,
+                fontSize: t.fontSize(10),
+                letterSpacing: 2,
+              ),
+            ),
+          );
         }
 
         final beatIndex = state.selectedBeatIndex!;
         final beat = state.activeCascade!.beats[beatIndex];
-        final charCount = state.activeCascade!.characterCount;
-        final useCoords = state.activeCascade!.useCoords;
+        final useCoords = state.activeCascade!.effectiveUseCoords(beat);
 
-        _syncControllers(beat, beatIndex, charCount);
+        _syncControllers(beat, beatIndex);
 
         final tagService = context.read<GenerationNotifier>().tagService;
         final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -182,7 +226,8 @@ class _DirectorViewState extends State<DirectorView> {
                 hint: l.cascadeSceneHint,
                 controller: _sceneController,
                 focusNode: _sceneFocusNode,
-                onChanged: (v) => notifier.updateActiveBeat(beat.copyWith(sceneTags: v)),
+                onChanged: (v) =>
+                    notifier.updateActiveBeat(beat.copyWith(sceneTags: v)),
                 tagService: tagService,
                 // Apply this beat's scene/action to every beat — the core
                 // "fixed shot, changing action" workflow this feature enables.
@@ -197,18 +242,58 @@ class _DirectorViewState extends State<DirectorView> {
                 hint: l.cascadeEnvHint,
                 controller: _envController,
                 focusNode: _envFocusNode,
-                onChanged: (v) => notifier.updateActiveBeat(beat.copyWith(environmentTags: v)),
+                onChanged: (v) => notifier.updateActiveBeat(
+                  beat.copyWith(environmentTags: v),
+                ),
                 tagService: tagService,
               ),
               const SizedBox(height: 32),
-              _buildSectionHeader(l.cascadeCharacterSlots),
+              _buildCharacterSlotsHeader(l, t, beat, notifier, useCoords),
               const SizedBox(height: 16),
-              Column(
-                children: [
-                  for (int i = 0; i < charCount; i++)
-                    _buildSlotItem(context, i, beat, notifier, useCoords),
-                ],
-              ),
+              if (beat.characterSlots.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    l.cascadeNoCharactersInBeat,
+                    style: TextStyle(
+                      color: t.textDisabled,
+                      fontSize: t.fontSize(10),
+                    ),
+                  ),
+                )
+              else
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  onReorder: notifier.reorderCharactersInActiveBeat,
+                  children: [
+                    for (int i = 0; i < beat.characterSlots.length; i++)
+                      KeyedSubtree(
+                        key: ValueKey(
+                          'cascade-slot-${beat.characterSlots[i].castIndex}',
+                        ),
+                        child: _buildSlotItem(
+                          context,
+                          i,
+                          beat,
+                          notifier,
+                          useCoords,
+                          dragHandle: ReorderableDragStartListener(
+                            index: i,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Icon(
+                                Icons.drag_handle,
+                                size: 18,
+                                color: t.textDisabled,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               const SizedBox(height: 32),
               _buildSectionHeader(l.cascadeBeatSettings),
               const SizedBox(height: 16),
@@ -221,6 +306,116 @@ class _DirectorViewState extends State<DirectorView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCharacterSlotsHeader(
+    AppLocalizations l,
+    VisionTokens t,
+    CascadeBeat beat,
+    CascadeNotifier notifier,
+    bool useCoords,
+  ) {
+    final slotCount = beat.characterSlots.length;
+    final castCount = notifier.state.activeCascade?.characterCount ?? 0;
+    final missing = notifier.castMembersMissingFromActiveBeat();
+    final canAddNew = castCount < PromptCascade.maxCharacterSlots;
+    final canAdd =
+        slotCount < PromptCascade.maxCharacterSlots &&
+        (missing.isNotEmpty || canAddNew);
+    final menuStyle = TextStyle(
+      color: t.textPrimary,
+      fontSize: t.fontSize(10),
+      letterSpacing: 1,
+    );
+    return Row(
+      children: [
+        Expanded(child: _buildSectionHeader(l.cascadeCharacterSlots)),
+        _placementToggle(l, t, useCoords, notifier),
+        const SizedBox(width: 8),
+        // Existing cast members who are absent from this beat come first so
+        // "C2 alone in this shot" is one tap; a fresh character is last.
+        PopupMenuButton<int>(
+          tooltip: l.cascadeAddCharacter,
+          enabled: canAdd,
+          color: t.surfaceHigh,
+          padding: const EdgeInsets.all(6),
+          constraints: const BoxConstraints(minWidth: 160),
+          onSelected: (v) =>
+              notifier.addCharacterToActiveBeat(castIndex: v < 0 ? null : v),
+          itemBuilder: (_) => [
+            for (final i in missing)
+              PopupMenuItem<int>(
+                value: i,
+                height: 36,
+                child: Text(l.cascadeCastMemberN(i + 1), style: menuStyle),
+              ),
+            if (canAddNew)
+              PopupMenuItem<int>(
+                value: -1,
+                height: 36,
+                child: Text(l.cascadeNewCharacter, style: menuStyle),
+              ),
+          ],
+          child: Icon(
+            Icons.person_add_alt_1,
+            size: 18,
+            color: canAdd ? t.accentCascade : t.textMinimal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _placementToggle(
+    AppLocalizations l,
+    VisionTokens t,
+    bool useCoords,
+    CascadeNotifier notifier,
+  ) {
+    Widget pill(String label, bool selected, VoidCallback onTap) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: selected
+                ? t.accentCascade.withValues(alpha: 0.2)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: selected ? t.accentCascade : t.borderSubtle,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? t.accentCascade : t.textDisabled,
+              fontSize: t.fontSize(8),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        pill(
+          l.cascadePlacementManual,
+          useCoords,
+          () => notifier.setActiveBeatUseCoords(true),
+        ),
+        const SizedBox(width: 4),
+        pill(
+          l.cascadePlacementAi,
+          !useCoords,
+          () => notifier.setActiveBeatUseCoords(false),
+        ),
+      ],
     );
   }
 
@@ -266,10 +461,7 @@ class _DirectorViewState extends State<DirectorView> {
         Row(
           children: [
             Expanded(child: _buildSectionHeader(header)),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              trailing,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing],
           ],
         ),
         if (subLabel != null)
@@ -277,36 +469,55 @@ class _DirectorViewState extends State<DirectorView> {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               subLabel,
-              style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(8), letterSpacing: 0.5),
+              style: TextStyle(
+                color: t.textDisabled,
+                fontSize: t.fontSize(8),
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         const SizedBox(height: 12),
         TextField(
           controller: controller,
           focusNode: focusNode,
-          onChanged: (val) => _handleTagInput(controller, onChanged, val, tagService),
-          style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(13), height: 1.4),
+          onChanged: (val) =>
+              _handleTagInput(controller, onChanged, val, tagService),
+          style: TextStyle(
+            color: t.textPrimary,
+            fontSize: t.fontSize(13),
+            height: 1.4,
+          ),
           maxLines: 3,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: t.textMinimal, fontSize: t.fontSize(11)),
+            hintStyle: TextStyle(
+              color: t.textMinimal,
+              fontSize: t.fontSize(11),
+            ),
             filled: true,
             fillColor: t.accentCascade.withValues(alpha: 0.02),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(4),
-              borderSide: BorderSide(color: t.accentCascade.withValues(alpha: 0.1)),
+              borderSide: BorderSide(
+                color: t.accentCascade.withValues(alpha: 0.1),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(4),
-              borderSide: BorderSide(color: t.accentCascade.withValues(alpha: 0.05)),
+              borderSide: BorderSide(
+                color: t.accentCascade.withValues(alpha: 0.05),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(4),
-              borderSide: BorderSide(color: t.accentCascade.withValues(alpha: 0.2)),
+              borderSide: BorderSide(
+                color: t.accentCascade.withValues(alpha: 0.2),
+              ),
             ),
           ),
         ),
-        if (_activeSuggestionController == controller && _suggestions.isNotEmpty)
+        if (_activeSuggestionController == controller &&
+            _suggestions.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: TagSuggestionOverlay(
@@ -346,7 +557,14 @@ class _DirectorViewState extends State<DirectorView> {
     );
   }
 
-  Widget _buildSlotItem(BuildContext context, int index, CascadeBeat beat, CascadeNotifier notifier, bool useCoords) {
+  Widget _buildSlotItem(
+    BuildContext context,
+    int index,
+    CascadeBeat beat,
+    CascadeNotifier notifier,
+    bool useCoords, {
+    Widget? dragHandle,
+  }) {
     final t = context.t;
     final l = context.l;
     final slot = beat.characterSlots[index];
@@ -365,6 +583,7 @@ class _DirectorViewState extends State<DirectorView> {
         children: [
           Row(
             children: [
+              if (dragHandle != null) dragHandle,
               Container(
                 width: 28,
                 height: 28,
@@ -374,17 +593,38 @@ class _DirectorViewState extends State<DirectorView> {
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  '${index + 1}',
-                  style: TextStyle(color: t.background, fontWeight: FontWeight.bold, fontSize: t.fontSize(12)),
+                  '${slot.castIndex + 1}',
+                  style: TextStyle(
+                    color: t.background,
+                    fontWeight: FontWeight.bold,
+                    fontSize: t.fontSize(12),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
-                l.cascadeCharacterSlotN(index + 1),
-                style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(11), fontWeight: FontWeight.w900, letterSpacing: 2),
+                l.cascadeCastMemberN(slot.castIndex + 1),
+                style: TextStyle(
+                  color: t.textPrimary,
+                  fontSize: t.fontSize(11),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
               ),
               const Spacer(),
-              _buildActionLinker(context, index, beat, notifier),
+              if (beat.characterSlots.length >= 2)
+                _buildActionLinker(context, index, beat, notifier),
+              IconButton(
+                tooltip: l.cascadeRemoveCharacter,
+                onPressed: () => notifier.removeCharacterFromActiveBeat(index),
+                icon: Icon(
+                  Icons.person_remove_alt_1,
+                  size: 18,
+                  color: t.textDisabled,
+                ),
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(6),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -397,20 +637,70 @@ class _DirectorViewState extends State<DirectorView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l.cascadePosition, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(8), fontWeight: FontWeight.bold, letterSpacing: 1)),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 180,
-                        child: NaiGridSelector(
-                          freeform: context.select<GenerationNotifier?, bool>(
-                              (n) => n?.state.model.caps.freeformPosition ?? false),
-                          selectedCoordinate: slot.position,
-                          onCoordinateSelected: (coord) {
-                            final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
-                            updatedSlots[index] = slot.copyWith(position: coord);
-                            notifier.updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
-                          },
+                      Text(
+                        l.cascadePosition,
+                        style: TextStyle(
+                          color: t.textDisabled,
+                          fontSize: t.fontSize(8),
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final ratio = beat.height > 0
+                              ? beat.width / beat.height
+                              : 1.0;
+                          var width = constraints.maxWidth;
+                          var height = width / ratio;
+                          const maxH = 240.0;
+                          const minH = 120.0;
+                          if (height > maxH) {
+                            height = maxH;
+                            width = height * ratio;
+                          } else if (height < minH) {
+                            height = minH;
+                            width = height * ratio;
+                            if (width > constraints.maxWidth) {
+                              width = constraints.maxWidth;
+                              height = width / ratio;
+                            }
+                          }
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              width: width,
+                              height: height,
+                              child: NaiGridSelector(
+                                freeform: context
+                                    .select<GenerationNotifier?, bool>(
+                                      (n) =>
+                                          n
+                                              ?.state
+                                              .model
+                                              .caps
+                                              .freeformPosition ??
+                                          false,
+                                    ),
+                                aspectRatio: ratio,
+                                selectedCoordinate: slot.position,
+                                onCoordinateSelected: (coord) {
+                                  final updatedSlots =
+                                      List<BeatCharacterSlot>.from(
+                                        beat.characterSlots,
+                                      );
+                                  updatedSlots[index] = slot.copyWith(
+                                    position: coord,
+                                  );
+                                  notifier.updateActiveBeat(
+                                    beat.copyWith(characterSlots: updatedSlots),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -424,7 +714,9 @@ class _DirectorViewState extends State<DirectorView> {
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: Colors.orange.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Text(
                       l.cascadeAiPosition,
@@ -449,9 +741,15 @@ class _DirectorViewState extends State<DirectorView> {
                       controller: _posControllers[index]!,
                       focusNode: _posFocusNodes[index]!,
                       onChanged: (val) {
-                        final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
-                        updatedSlots[index] = slot.copyWith(positivePrompt: val);
-                        notifier.updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+                        final updatedSlots = List<BeatCharacterSlot>.from(
+                          beat.characterSlots,
+                        );
+                        updatedSlots[index] = slot.copyWith(
+                          positivePrompt: val,
+                        );
+                        notifier.updateActiveBeat(
+                          beat.copyWith(characterSlots: updatedSlots),
+                        );
                       },
                       tagService: generationNotifier.tagService,
                     ),
@@ -462,9 +760,15 @@ class _DirectorViewState extends State<DirectorView> {
                       controller: _negControllers[index]!,
                       focusNode: _negFocusNodes[index]!,
                       onChanged: (val) {
-                        final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
-                        updatedSlots[index] = slot.copyWith(negativePrompt: val);
-                        notifier.updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+                        final updatedSlots = List<BeatCharacterSlot>.from(
+                          beat.characterSlots,
+                        );
+                        updatedSlots[index] = slot.copyWith(
+                          negativePrompt: val,
+                        );
+                        notifier.updateActiveBeat(
+                          beat.copyWith(characterSlots: updatedSlots),
+                        );
                       },
                       tagService: generationNotifier.tagService,
                     ),
@@ -474,17 +778,17 @@ class _DirectorViewState extends State<DirectorView> {
             ],
           ),
           if (slot.actionTags.isNotEmpty)
-             Padding(
-               padding: const EdgeInsets.only(top: 16.0),
-               child: Wrap(
-                 spacing: 8,
-                 runSpacing: 8,
-                 children: [
-                   for (final tag in slot.actionTags)
-                     _buildActionChip(context, beat, notifier, index, slot, tag),
-                 ],
-               ),
-             ),
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tag in slot.actionTags)
+                    _buildActionChip(context, beat, notifier, index, slot, tag),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -503,26 +807,51 @@ class _DirectorViewState extends State<DirectorView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(8), fontWeight: FontWeight.bold, letterSpacing: 1)),
+        Text(
+          label,
+          style: TextStyle(
+            color: t.textDisabled,
+            fontSize: t.fontSize(8),
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           focusNode: focusNode,
-          onChanged: (val) => _handleTagInput(controller, onChanged, val, tagService),
+          onChanged: (val) =>
+              _handleTagInput(controller, onChanged, val, tagService),
           maxLines: 2,
-          style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(11), height: 1.4),
+          style: TextStyle(
+            color: t.textPrimary,
+            fontSize: t.fontSize(11),
+            height: 1.4,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: t.textMinimal, fontSize: t.fontSize(9)),
             filled: true,
             fillColor: t.background.withValues(alpha: 0.2),
             contentPadding: const EdgeInsets.all(10),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: t.borderSubtle)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: t.borderSubtle)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: t.accentCascade.withValues(alpha: 0.2))),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide(color: t.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide(color: t.borderSubtle),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide(
+                color: t.accentCascade.withValues(alpha: 0.2),
+              ),
+            ),
           ),
         ),
-        if (_activeSuggestionController == controller && _suggestions.isNotEmpty)
+        if (_activeSuggestionController == controller &&
+            _suggestions.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: TagSuggestionOverlay(
@@ -534,7 +863,12 @@ class _DirectorViewState extends State<DirectorView> {
     );
   }
 
-  Widget _buildActionLinker(BuildContext context, int index, CascadeBeat beat, CascadeNotifier notifier) {
+  Widget _buildActionLinker(
+    BuildContext context,
+    int index,
+    CascadeBeat beat,
+    CascadeNotifier notifier,
+  ) {
     final t = context.t;
     final l = context.l;
     return IconButton(
@@ -543,18 +877,33 @@ class _DirectorViewState extends State<DirectorView> {
         _showLinkerMenu(context, index, beat, notifier);
       },
       tooltip: l.cascadeLinkAction,
-      constraints: const BoxConstraints(),
-      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      padding: const EdgeInsets.all(6),
     );
   }
 
-  void _showLinkerMenu(BuildContext context, int sourceIndex, CascadeBeat beat, CascadeNotifier notifier) {
-    final t = context.t;
+  void _showLinkerMenu(
+    BuildContext context,
+    int sourceIndex,
+    CascadeBeat beat,
+    CascadeNotifier notifier,
+  ) {
+    final t = context.tRead;
     final targetIndex = (sourceIndex + 1) % beat.characterSlots.length;
     // Build dummy character list for the sheet's label display
-    final sheetChars = beat.characterSlots.asMap().entries.map((e) =>
-      NaiCharacter(prompt: '', uc: '', center: NaiCoordinate(x: 0.5, y: 0.5), name: 'C${e.key + 1}'),
-    ).toList();
+    final sheetChars = beat.characterSlots
+        .asMap()
+        .entries
+        .map(
+          (e) => NaiCharacter(
+            prompt: '',
+            uc: '',
+            center: NaiCoordinate(x: 0.5, y: 0.5),
+            name: 'C${e.value.castIndex + 1}',
+          ),
+        )
+        .toList();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -563,9 +912,12 @@ class _DirectorViewState extends State<DirectorView> {
         sourceIndices: [sourceIndex],
         targetIndices: [targetIndex],
         initialType: InteractionType.sourceTarget,
+        anchorIndex: sourceIndex,
         characters: sheetChars,
         onSave: (interaction) {
-          final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
+          final updatedSlots = List<BeatCharacterSlot>.from(
+            beat.characterSlots,
+          );
 
           for (final idx in interaction.sourceCharacterIndices) {
             if (idx < updatedSlots.length) {
@@ -578,11 +930,15 @@ class _DirectorViewState extends State<DirectorView> {
           for (final idx in interaction.targetCharacterIndices) {
             if (idx < updatedSlots.length) {
               updatedSlots[idx] = _appendActionTag(
-                  updatedSlots[idx], 'target#${interaction.actionName}');
+                updatedSlots[idx],
+                'target#${interaction.actionName}',
+              );
             }
           }
 
-          notifier.updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+          notifier.updateActiveBeat(
+            beat.copyWith(characterSlots: updatedSlots),
+          );
         },
         onDelete: () {
           // Deletion is handled per-tag from the slot's action chips.
@@ -600,8 +956,14 @@ class _DirectorViewState extends State<DirectorView> {
 
   /// A single removable action-tag chip for a character slot. Tapping the
   /// close icon removes only that tag, leaving any others intact.
-  Widget _buildActionChip(BuildContext context, CascadeBeat beat,
-      CascadeNotifier notifier, int index, BeatCharacterSlot slot, String tag) {
+  Widget _buildActionChip(
+    BuildContext context,
+    CascadeBeat beat,
+    CascadeNotifier notifier,
+    int index,
+    BeatCharacterSlot slot,
+    String tag,
+  ) {
     final t = context.t;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -617,16 +979,25 @@ class _DirectorViewState extends State<DirectorView> {
           const SizedBox(width: 8),
           Text(
             tag.toUpperCase(),
-            style: TextStyle(color: t.accentCascade, fontSize: t.fontSize(9), fontWeight: FontWeight.w900, letterSpacing: 1),
+            style: TextStyle(
+              color: t.accentCascade,
+              fontSize: t.fontSize(9),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(width: 8),
           InkWell(
             onTap: () {
-              final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
+              final updatedSlots = List<BeatCharacterSlot>.from(
+                beat.characterSlots,
+              );
               updatedSlots[index] = slot.copyWith(
                 actionTags: slot.actionTags.where((e) => e != tag).toList(),
               );
-              notifier.updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+              notifier.updateActiveBeat(
+                beat.copyWith(characterSlots: updatedSlots),
+              );
             },
             child: Padding(
               padding: const EdgeInsets.all(4.0),
@@ -650,25 +1021,29 @@ class _DirectorViewState extends State<DirectorView> {
           label: l.cascadeResolution,
           value: knownRes ? resValue : resOptions.first.value,
           items: [...resOptions.map((opt) => opt.value), '__custom__'],
-          itemLabels: [...resOptions.map((opt) => opt.displayLabel), '+ ${l.resCustomEntry.toUpperCase()}'],
+          itemLabels: [
+            ...resOptions.map((opt) => opt.displayLabel),
+            '+ ${l.resCustomEntry.toUpperCase()}',
+          ],
           onChanged: (val) async {
             if (val == '__custom__') {
               final result = await showCustomResolutionDialog(context);
               if (result != null) {
-                notifier.updateActiveBeat(beat.copyWith(
-                  width: result.width,
-                  height: result.height,
-                ));
+                notifier.updateActiveBeat(
+                  beat.copyWith(width: result.width, height: result.height),
+                );
                 if (mounted) setState(() {});
               }
               return;
             }
             if (val == null) return;
             final parts = val.split('x');
-            notifier.updateActiveBeat(beat.copyWith(
-              width: int.parse(parts[0]),
-              height: int.parse(parts[1]),
-            ));
+            notifier.updateActiveBeat(
+              beat.copyWith(
+                width: int.parse(parts[0]),
+                height: int.parse(parts[1]),
+              ),
+            );
           },
         ),
         const SizedBox(height: 12),
@@ -678,8 +1053,15 @@ class _DirectorViewState extends State<DirectorView> {
               child: _buildCompactDropdown(
                 label: l.cascadeSampler,
                 value: beat.sampler,
-                items: ['k_euler_ancestral', 'k_euler', 'k_dpmpp_2s_ancestral', 'k_dpmpp_2m', 'k_dpmpp_sde'],
-                onChanged: (val) => notifier.updateActiveBeat(beat.copyWith(sampler: val)),
+                items: [
+                  'k_euler_ancestral',
+                  'k_euler',
+                  'k_dpmpp_2s_ancestral',
+                  'k_dpmpp_2m',
+                  'k_dpmpp_sde',
+                ],
+                onChanged: (val) =>
+                    notifier.updateActiveBeat(beat.copyWith(sampler: val)),
               ),
             ),
             const SizedBox(width: 12),
@@ -689,7 +1071,9 @@ class _DirectorViewState extends State<DirectorView> {
                 value: beat.steps.toDouble(),
                 min: 1,
                 max: 50,
-                onChanged: (val) => notifier.updateActiveBeat(beat.copyWith(steps: val.toInt())),
+                onChanged: (val) => notifier.updateActiveBeat(
+                  beat.copyWith(steps: val.toInt()),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -699,7 +1083,8 @@ class _DirectorViewState extends State<DirectorView> {
                 value: beat.scale,
                 min: 1.0,
                 max: 30.0,
-                onChanged: (val) => notifier.updateActiveBeat(beat.copyWith(scale: val)),
+                onChanged: (val) =>
+                    notifier.updateActiveBeat(beat.copyWith(scale: val)),
               ),
             ),
           ],
@@ -715,46 +1100,55 @@ class _DirectorViewState extends State<DirectorView> {
     // Beats render with the main editor's model, so offer the same subset.
     final styles = gen.stylesForCurrentModel;
     final hiddenCount = gen.hiddenStyleCountForCurrentModel;
-    final otherFamily = gen.state.model.isV5 ? NaiModelFamily.v45 : NaiModelFamily.v5;
+    final otherFamily = gen.state.model.isV5
+        ? NaiModelFamily.v45
+        : NaiModelFamily.v5;
 
     if (styles.isEmpty) {
-      return Text(l.cascadeNoStyles, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(9)));
+      return Text(
+        l.cascadeNoStyles,
+        style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(9)),
+      );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: styles.map((style) {
-        final isSelected = beat.activeStyleNames.contains(style.name);
-        return FilterChip(
-          selected: isSelected,
-          label: Text(
-            style.name.toUpperCase(),
-            style: TextStyle(
-              color: isSelected ? t.background : t.textSecondary,
-              fontSize: t.fontSize(9),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              letterSpacing: 1,
-            ),
-          ),
-          selectedColor: t.accentCascade,
-          backgroundColor: t.borderSubtle,
-          checkmarkColor: t.background,
-          side: BorderSide(color: isSelected ? t.accentCascade : t.borderMedium),
-          onSelected: (selected) {
-            final updated = List<String>.from(beat.activeStyleNames);
-            if (selected) {
-              updated.add(style.name);
-            } else {
-              updated.remove(style.name);
-            }
-            notifier.updateActiveBeat(beat.copyWith(activeStyleNames: updated));
-          },
-        );
-      }).toList(),
+          spacing: 8,
+          runSpacing: 8,
+          children: styles.map((style) {
+            final isSelected = beat.activeStyleNames.contains(style.name);
+            return FilterChip(
+              selected: isSelected,
+              label: Text(
+                style.name.toUpperCase(),
+                style: TextStyle(
+                  color: isSelected ? t.background : t.textSecondary,
+                  fontSize: t.fontSize(9),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  letterSpacing: 1,
+                ),
+              ),
+              selectedColor: t.accentCascade,
+              backgroundColor: t.borderSubtle,
+              checkmarkColor: t.background,
+              side: BorderSide(
+                color: isSelected ? t.accentCascade : t.borderMedium,
+              ),
+              onSelected: (selected) {
+                final updated = List<String>.from(beat.activeStyleNames);
+                if (selected) {
+                  updated.add(style.name);
+                } else {
+                  updated.remove(style.name);
+                }
+                notifier.updateActiveBeat(
+                  beat.copyWith(activeStyleNames: updated),
+                );
+              },
+            );
+          }).toList(),
         ),
         if (hiddenCount > 0)
           Padding(
@@ -768,13 +1162,26 @@ class _DirectorViewState extends State<DirectorView> {
     );
   }
 
-  Widget _buildCompactDropdown({required String label, required String value, required List<String> items, List<String>? itemLabels, required ValueChanged<String?> onChanged}) {
+  Widget _buildCompactDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    List<String>? itemLabels,
+    required ValueChanged<String?> onChanged,
+  }) {
     final t = context.t;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(8), fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: t.textDisabled,
+            fontSize: t.fontSize(8),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -788,10 +1195,13 @@ class _DirectorViewState extends State<DirectorView> {
             underline: const SizedBox.shrink(),
             dropdownColor: t.surfaceHigh,
             style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(10)),
-            items: List.generate(items.length, (i) => DropdownMenuItem(
-              value: items[i],
-              child: Text(itemLabels != null ? itemLabels[i] : items[i]),
-            )),
+            items: List.generate(
+              items.length,
+              (i) => DropdownMenuItem(
+                value: items[i],
+                child: Text(itemLabels != null ? itemLabels[i] : items[i]),
+              ),
+            ),
             onChanged: onChanged,
           ),
         ),
@@ -799,13 +1209,26 @@ class _DirectorViewState extends State<DirectorView> {
     );
   }
 
-  Widget _buildCompactValueAdjuster({required String label, required double value, required double min, required double max, required ValueChanged<double> onChanged}) {
+  Widget _buildCompactValueAdjuster({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required ValueChanged<double> onChanged,
+  }) {
     final t = context.t;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(8), fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: t.textDisabled,
+            fontSize: t.fontSize(8),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -816,14 +1239,27 @@ class _DirectorViewState extends State<DirectorView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-               Text(value.toStringAsFixed(1), style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(10), fontWeight: FontWeight.bold)),
-               Row(
-                 children: [
-                    InkWell(onTap: () => onChanged((value - 1).clamp(min, max)), child: Icon(Icons.remove, size: 14, color: t.textDisabled)),
-                    const SizedBox(width: 8),
-                    InkWell(onTap: () => onChanged((value + 1).clamp(min, max)), child: Icon(Icons.add, size: 14, color: t.textDisabled)),
-                 ],
-               )
+              Text(
+                value.toStringAsFixed(1),
+                style: TextStyle(
+                  color: t.textPrimary,
+                  fontSize: t.fontSize(10),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => onChanged((value - 1).clamp(min, max)),
+                    child: Icon(Icons.remove, size: 14, color: t.textDisabled),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => onChanged((value + 1).clamp(min, max)),
+                    child: Icon(Icons.add, size: 14, color: t.textDisabled),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

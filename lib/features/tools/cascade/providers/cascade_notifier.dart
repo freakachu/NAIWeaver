@@ -17,6 +17,11 @@ class CascadeState {
   final String globalInjection;
   final Map<int, Uint8List?> beatPreviews;
 
+  /// Gallery filename for each beat that has been saved this session, so the
+  /// album picker can check membership of the *currently viewed* beat instead
+  /// of whatever was last generated.
+  final Map<int, String> beatSavedBasenames;
+
   /// Free-text narration captions per beat index. Cast-time state for *this*
   /// run (like [characterAppearances]) — narration shown over the beat preview,
   /// never part of the saved cascade and never baked into [beatPreviews] bytes.
@@ -34,6 +39,7 @@ class CascadeState {
     this.globalSceneTags = "",
     this.globalInjection = "",
     this.beatPreviews = const {},
+    this.beatSavedBasenames = const {},
     this.beatCaptions = const {},
     this.captionsVisible = true,
   });
@@ -49,18 +55,24 @@ class CascadeState {
     String? globalSceneTags,
     String? globalInjection,
     Map<int, Uint8List?>? beatPreviews,
+    Map<int, String>? beatSavedBasenames,
     Map<int, String>? beatCaptions,
     bool? captionsVisible,
   }) {
     return CascadeState(
       savedCascades: savedCascades ?? this.savedCascades,
-      activeCascade: clearActiveCascade ? null : (activeCascade ?? this.activeCascade),
-      selectedBeatIndex: clearSelectedBeatIndex ? null : (selectedBeatIndex ?? this.selectedBeatIndex),
+      activeCascade: clearActiveCascade
+          ? null
+          : (activeCascade ?? this.activeCascade),
+      selectedBeatIndex: clearSelectedBeatIndex
+          ? null
+          : (selectedBeatIndex ?? this.selectedBeatIndex),
       isLoading: isLoading ?? this.isLoading,
       characterAppearances: characterAppearances ?? this.characterAppearances,
       globalSceneTags: globalSceneTags ?? this.globalSceneTags,
       globalInjection: globalInjection ?? this.globalInjection,
       beatPreviews: beatPreviews ?? this.beatPreviews,
+      beatSavedBasenames: beatSavedBasenames ?? this.beatSavedBasenames,
       beatCaptions: beatCaptions ?? this.beatCaptions,
       captionsVisible: captionsVisible ?? this.captionsVisible,
     );
@@ -108,7 +120,9 @@ class CascadeNotifier extends ChangeNotifier {
   Future<void> _saveToStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = json.encode(_state.savedCascades.map((e) => e.toJson()).toList());
+      final jsonString = json.encode(
+        _state.savedCascades.map((e) => e.toJson()).toList(),
+      );
       await prefs.setString(_storageKey, jsonString);
     } catch (e) {
       debugPrint('Error saving cascades: $e');
@@ -122,10 +136,13 @@ class CascadeNotifier extends ChangeNotifier {
       clearActiveCascade: cascade == null,
       selectedBeatIndex: cascade != null && cascade.beats.isNotEmpty ? 0 : null,
       clearSelectedBeatIndex: cascade == null,
-      characterAppearances: cascade != null ? List.generate(cascade.characterCount, (_) => "") : [],
+      characterAppearances: cascade != null
+          ? List.generate(cascade.characterCount, (_) => "")
+          : [],
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -139,6 +156,7 @@ class CascadeNotifier extends ChangeNotifier {
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -170,6 +188,24 @@ class CascadeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setBeatSavedBasename(int index, String basename) {
+    final updated = Map<int, String>.from(_state.beatSavedBasenames);
+    updated[index] = basename;
+    _state = _state.copyWith(beatSavedBasenames: updated);
+    notifyListeners();
+  }
+
+  /// Bind [basename] to whichever beat currently holds [image] in memory.
+  void recordBasenameForImage(Uint8List? image, String basename) {
+    if (image == null) return;
+    for (final entry in _state.beatPreviews.entries) {
+      if (identical(entry.value, image)) {
+        setBeatSavedBasename(entry.key, basename);
+        return;
+      }
+    }
+  }
+
   void setBeatCaption(int index, String text) {
     final updated = Map<int, String>.from(_state.beatCaptions);
     if (text.isEmpty) {
@@ -187,12 +223,20 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void selectBeat(int index) {
-    if (_state.activeCascade == null || index < 0 || index >= _state.activeCascade!.beats.length) return;
+    if (_state.activeCascade == null ||
+        index < 0 ||
+        index >= _state.activeCascade!.beats.length) {
+      return;
+    }
     _state = _state.copyWith(selectedBeatIndex: index);
     notifyListeners();
   }
 
-  void createNewCascade(String name, int characterCount, {bool useCoords = true}) {
+  void createNewCascade(
+    String name,
+    int characterCount, {
+    bool useCoords = true,
+  }) {
     final newCascade = PromptCascade(
       name: name,
       characterCount: characterCount,
@@ -200,11 +244,9 @@ class CascadeNotifier extends ChangeNotifier {
       beats: [
         // Start with one empty beat
         CascadeBeat(
-          characterSlots: List.generate(
-            characterCount,
-            (_) => BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2)),
-          ),
+          characterSlots: List.generate(characterCount, _emptySlot),
           environmentTags: "",
+          useCoords: useCoords,
         ),
       ],
     );
@@ -220,6 +262,7 @@ class CascadeNotifier extends ChangeNotifier {
       globalSceneTags: "",
       globalInjection: "",
       beatPreviews: {},
+      beatSavedBasenames: {},
       beatCaptions: {},
     );
     notifyListeners();
@@ -228,12 +271,16 @@ class CascadeNotifier extends ChangeNotifier {
   void saveActiveToLibrary() {
     if (_state.activeCascade == null) return;
 
-    final existingIndex = _state.savedCascades.indexWhere((c) => c.name == _state.activeCascade!.name);
+    final existingIndex = _state.savedCascades.indexWhere(
+      (c) => c.name == _state.activeCascade!.name,
+    );
     List<PromptCascade> updatedList;
     if (existingIndex >= 0) {
-      updatedList = List<PromptCascade>.from(_state.savedCascades)..[existingIndex] = _state.activeCascade!;
+      updatedList = List<PromptCascade>.from(_state.savedCascades)
+        ..[existingIndex] = _state.activeCascade!;
     } else {
-      updatedList = List<PromptCascade>.from(_state.savedCascades)..add(_state.activeCascade!);
+      updatedList = List<PromptCascade>.from(_state.savedCascades)
+        ..add(_state.activeCascade!);
     }
 
     _savedSnapshot = json.encode(_state.activeCascade!.toJson());
@@ -243,7 +290,9 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void deleteCascade(String name) {
-    final updatedList = _state.savedCascades.where((c) => c.name != name).toList();
+    final updatedList = _state.savedCascades
+        .where((c) => c.name != name)
+        .toList();
     _state = _state.copyWith(savedCascades: updatedList);
     if (_state.activeCascade?.name == name) {
       _state = _state.copyWith(activeCascade: null, selectedBeatIndex: null);
@@ -254,18 +303,25 @@ class CascadeNotifier extends ChangeNotifier {
 
   void addBeat() {
     if (_state.activeCascade == null) return;
-    
+
+    final last = _state.activeCascade!.beats.isNotEmpty
+        ? _state.activeCascade!.beats.last
+        : null;
+    // A new beat opens with the same cast as the previous one (fresh slots,
+    // same characters) so a story keeps its people unless the user says so.
+    final castIndices = last != null
+        ? last.characterSlots.map((s) => s.castIndex).toList()
+        : List.generate(_state.activeCascade!.characterCount, (i) => i);
     final newBeat = CascadeBeat(
-      characterSlots: List.generate(
-        _state.activeCascade!.characterCount,
-        (_) => BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2)),
-      ),
-      environmentTags: _state.activeCascade!.beats.isNotEmpty 
-          ? _state.activeCascade!.beats.last.environmentTags 
-          : "",
+      characterSlots: castIndices.map(_emptySlot).toList(),
+      environmentTags: last?.environmentTags ?? "",
+      width: last?.width ?? 832,
+      height: last?.height ?? 1216,
+      useCoords: last?.useCoords ?? _state.activeCascade!.useCoords,
     );
-    
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..add(newBeat);
+
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..add(newBeat);
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: updatedBeats.length - 1,
@@ -274,16 +330,25 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void cloneBeat(int index) {
-    if (_state.activeCascade == null || index < 0 || index >= _state.activeCascade!.beats.length) return;
+    if (_state.activeCascade == null ||
+        index < 0 ||
+        index >= _state.activeCascade!.beats.length) {
+      return;
+    }
 
     final sourceBeat = _state.activeCascade!.beats[index];
     final clonedBeat = CascadeBeat(
-      characterSlots: sourceBeat.characterSlots.map((s) => BeatCharacterSlot(
-        position: s.position,
-        actionTags: List.of(s.actionTags),
-        positivePrompt: s.positivePrompt,
-        negativePrompt: s.negativePrompt,
-      )).toList(),
+      characterSlots: sourceBeat.characterSlots
+          .map(
+            (s) => BeatCharacterSlot(
+              position: s.position,
+              castIndex: s.castIndex,
+              actionTags: List.of(s.actionTags),
+              positivePrompt: s.positivePrompt,
+              negativePrompt: s.negativePrompt,
+            ),
+          )
+          .toList(),
       sceneTags: sourceBeat.sceneTags,
       environmentTags: sourceBeat.environmentTags,
       sampler: sourceBeat.sampler,
@@ -292,9 +357,11 @@ class CascadeNotifier extends ChangeNotifier {
       width: sourceBeat.width,
       height: sourceBeat.height,
       activeStyleNames: List.of(sourceBeat.activeStyleNames),
+      useCoords: sourceBeat.useCoords,
     );
 
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..insert(index + 1, clonedBeat);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..insert(index + 1, clonedBeat);
     // The cloned beat starts un-generated and un-captioned. Shift every cast-time
     // map entry at or after the insertion point up by one so previews/captions
     // stay glued to their beats.
@@ -303,15 +370,20 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: insertAt,
       beatPreviews: _shiftForInsert(_state.beatPreviews, insertAt),
+      beatSavedBasenames: _shiftForInsert(_state.beatSavedBasenames, insertAt),
       beatCaptions: _shiftForInsert(_state.beatCaptions, insertAt),
     );
     notifyListeners();
   }
 
   void removeBeat(int index) {
-    if (_state.activeCascade == null || _state.activeCascade!.beats.length <= 1) return;
+    if (_state.activeCascade == null ||
+        _state.activeCascade!.beats.length <= 1) {
+      return;
+    }
 
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)..removeAt(index);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
+      ..removeAt(index);
     int? newSelectedIndex = _state.selectedBeatIndex;
     if (newSelectedIndex != null) {
       if (newSelectedIndex >= updatedBeats.length) {
@@ -325,6 +397,7 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: newSelectedIndex,
       beatPreviews: _shiftForRemoval(_state.beatPreviews, index),
+      beatSavedBasenames: _shiftForRemoval(_state.beatSavedBasenames, index),
       beatCaptions: _shiftForRemoval(_state.beatCaptions, index),
     );
     notifyListeners();
@@ -344,6 +417,11 @@ class CascadeNotifier extends ChangeNotifier {
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
       selectedBeatIndex: newIndex,
       beatPreviews: _shiftForReorder(_state.beatPreviews, oldIndex, newIndex),
+      beatSavedBasenames: _shiftForReorder(
+        _state.beatSavedBasenames,
+        oldIndex,
+        newIndex,
+      ),
       beatCaptions: _shiftForReorder(_state.beatCaptions, oldIndex, newIndex),
     );
     notifyListeners();
@@ -378,7 +456,11 @@ class CascadeNotifier extends ChangeNotifier {
   /// Re-key an index-keyed cast-time map under the same removeAt(oldIndex) +
   /// insert(newIndex) permutation applied to the beats list, so each beat's
   /// preview/caption follows it to its new position.
-  static Map<int, T> _shiftForReorder<T>(Map<int, T> map, int oldIndex, int newIndex) {
+  static Map<int, T> _shiftForReorder<T>(
+    Map<int, T> map,
+    int oldIndex,
+    int newIndex,
+  ) {
     final out = <int, T>{};
     map.forEach((k, v) {
       int nk;
@@ -400,8 +482,9 @@ class CascadeNotifier extends ChangeNotifier {
   /// "apply to all beats" action — the fixed-shot / changing-action workflow.
   void applySceneToAllBeats(String sceneTags) {
     if (_state.activeCascade == null) return;
-    final updatedBeats =
-        _state.activeCascade!.beats.map((b) => b.copyWith(sceneTags: sceneTags)).toList();
+    final updatedBeats = _state.activeCascade!.beats
+        .map((b) => b.copyWith(sceneTags: sceneTags))
+        .toList();
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
     );
@@ -409,14 +492,179 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void updateActiveBeat(CascadeBeat updatedBeat) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null) return;
-    
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+
     final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
     updatedBeats[_state.selectedBeatIndex!] = updatedBeat;
-    
+
     _state = _state.copyWith(
       activeCascade: _state.activeCascade!.copyWith(beats: updatedBeats),
     );
     notifyListeners();
+  }
+
+  static BeatCharacterSlot _emptySlot(int castIndex) => BeatCharacterSlot(
+    position: NaiCoordinate(x: 0.5, y: 0.5),
+    castIndex: castIndex,
+  );
+
+  /// Keeps [PromptCascade.characterCount] and cast-time appearances in sync
+  /// with the cast members actually referenced by some beat. Members no beat
+  /// uses any more are dropped and the survivors renumbered contiguously, with
+  /// each appearance following its character.
+  void _syncCastRoster(PromptCascade cascade) {
+    final used = <int>{
+      for (final b in cascade.beats)
+        for (final s in b.characterSlots) s.castIndex,
+    }.toList()..sort();
+    final remap = {for (final (i, old) in used.indexed) old: i};
+
+    final beats = cascade.beats
+        .map(
+          (b) => b.copyWith(
+            characterSlots: [
+              for (final s in b.characterSlots)
+                s.castIndex == remap[s.castIndex]
+                    ? s
+                    : s.copyWith(castIndex: remap[s.castIndex]),
+            ],
+          ),
+        )
+        .toList();
+
+    final old = _state.characterAppearances;
+    final appearances = [for (final i in used) i < old.length ? old[i] : ''];
+
+    _state = _state.copyWith(
+      activeCascade: cascade.copyWith(
+        beats: beats,
+        characterCount: used.length,
+      ),
+      characterAppearances: appearances,
+    );
+  }
+
+  /// Cast members not yet on the selected beat, in cast order.
+  List<int> castMembersMissingFromActiveBeat() {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return const [];
+    }
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    final present = beat.characterSlots.map((s) => s.castIndex).toSet();
+    return [
+      for (int i = 0; i < _state.activeCascade!.characterCount; i++)
+        if (!present.contains(i)) i,
+    ];
+  }
+
+  /// Adds a slot to the selected beat. [castIndex] picks an existing cast
+  /// member who is not yet on the beat; omit it to add a brand-new character
+  /// to the cast. Both the beat's slot count and the cast size are capped at
+  /// [PromptCascade.maxCharacterSlots].
+  void addCharacterToActiveBeat({int? castIndex}) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+    final cascade = _state.activeCascade!;
+    final beat = cascade.beats[_state.selectedBeatIndex!];
+    if (beat.characterSlots.length >= PromptCascade.maxCharacterSlots) return;
+
+    final int who;
+    if (castIndex != null) {
+      if (castIndex < 0 || castIndex >= cascade.characterCount) return;
+      if (beat.characterSlots.any((s) => s.castIndex == castIndex)) return;
+      who = castIndex;
+    } else {
+      if (cascade.characterCount >= PromptCascade.maxCharacterSlots) return;
+      who = cascade.characterCount;
+    }
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots)
+      ..add(_emptySlot(who));
+    final updatedBeats = List<CascadeBeat>.from(cascade.beats);
+    updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
+      characterSlots: updatedSlots,
+    );
+    _syncCastRoster(cascade.copyWith(beats: updatedBeats));
+    notifyListeners();
+  }
+
+  void removeCharacterFromActiveBeat(int index) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    if (index < 0 || index >= beat.characterSlots.length) return;
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots)
+      ..removeAt(index);
+    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
+    updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
+      characterSlots: pruneOrphanActionTags(updatedSlots),
+    );
+    _syncCastRoster(_state.activeCascade!.copyWith(beats: updatedBeats));
+    notifyListeners();
+  }
+
+  /// Every interaction tags both parties (`source#x` + `target#x`, or
+  /// `mutual#x` on each). A tag whose action name appears on no *other* slot
+  /// has lost its partner, typically because that slot was removed, and is
+  /// dropped so a lone `target#hug` never reaches the prompt.
+  @visibleForTesting
+  static List<BeatCharacterSlot> pruneOrphanActionTags(
+    List<BeatCharacterSlot> slots,
+  ) {
+    String actionOf(String tag) {
+      final hash = tag.indexOf('#');
+      return hash < 0 ? tag : tag.substring(hash + 1);
+    }
+
+    bool hasPartner(int self, String tag) {
+      for (final (j, other) in slots.indexed) {
+        if (j == self) continue;
+        if (other.actionTags.any((o) => actionOf(o) == actionOf(tag))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return [
+      for (final (i, slot) in slots.indexed)
+        slot.actionTags.every((tag) => hasPartner(i, tag))
+            ? slot
+            : slot.copyWith(
+                actionTags: [
+                  for (final tag in slot.actionTags)
+                    if (hasPartner(i, tag)) tag,
+                ],
+              ),
+    ];
+  }
+
+  void reorderCharactersInActiveBeat(int oldIndex, int newIndex) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    if (oldIndex < 0 || oldIndex >= beat.characterSlots.length) return;
+    var dest = newIndex;
+    if (dest > oldIndex) dest -= 1;
+    if (dest < 0 || dest >= beat.characterSlots.length) return;
+
+    final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots);
+    final item = updatedSlots.removeAt(oldIndex);
+    updatedSlots.insert(dest, item);
+    updateActiveBeat(beat.copyWith(characterSlots: updatedSlots));
+  }
+
+  void setActiveBeatUseCoords(bool useCoords) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+    final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    updateActiveBeat(beat.copyWith(useCoords: useCoords));
   }
 }

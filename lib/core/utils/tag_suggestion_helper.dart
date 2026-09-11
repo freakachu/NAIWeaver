@@ -48,7 +48,9 @@ class TagSuggestionHelper {
 
     // Strip strength prefix (e.g. "2::1gi" → lookupWord = "1gi", strength prefix = "2::")
     String lookupWord = currentWord;
-    final strengthMatch = RegExp(r'^-?\d+(?:\.\d+)?::(.*)').firstMatch(currentWord);
+    final strengthMatch = RegExp(
+      r'^-?\d+(?:\.\d+)?::(.*)',
+    ).firstMatch(currentWord);
     if (strengthMatch != null) lookupWord = strengthMatch.group(1)!;
 
     // Wildcard completion: triggered by `__`
@@ -57,10 +59,7 @@ class TagSuggestionHelper {
       final suggestions = query.isEmpty
           ? wildcardService.getAll()
           : wildcardService.getSuggestions(query);
-      return TagSuggestionResult(
-        suggestions: suggestions,
-        query: currentWord,
-      );
+      return TagSuggestionResult(suggestions: suggestions, query: currentWord);
     }
 
     if (supportFavorites && lookupWord.startsWith('/f')) {
@@ -79,14 +78,15 @@ class TagSuggestionHelper {
 
     // Saved-character matches (≥2 chars). Slotted in just above the ordinary
     // danbooru tag suggestions in the normal-typing flow.
-    final charMatches = (characterSuggestionsFor != null && lookupWord.length >= 2)
+    final charMatches =
+        (characterSuggestionsFor != null && lookupWord.length >= 2)
         ? characterSuggestionsFor(lookupWord)
         : const <DanbooruTag>[];
 
     // Category prefix detection (e.g. "artist:moj" or "artist:")
     final lowerWord = lookupWord.toLowerCase();
     for (final entry in _categoryPrefixes.entries) {
-      final prefix = entry.key;   // e.g. "artist:"
+      final prefix = entry.key; // e.g. "artist:"
       final category = entry.value; // e.g. "artist"
 
       // Case 1: Full prefix typed (e.g. "artist:", "artist:moj")
@@ -111,10 +111,7 @@ class TagSuggestionHelper {
         if (lookupWord.length >= catMinLength) {
           results.addAll(tagService.getSuggestions(lookupWord));
         }
-        return TagSuggestionResult(
-          suggestions: results,
-          query: currentWord,
-        );
+        return TagSuggestionResult(suggestions: results, query: currentWord);
       }
     }
 
@@ -140,7 +137,12 @@ class TagSuggestionHelper {
   static void applyTag(TextEditingController controller, DanbooruTag tag) {
     final text = controller.text;
     final selection = controller.selection;
-    final cursorPosition = selection.baseOffset;
+    // Tapping a suggestion often unfocuses the field first, which makes
+    // selection invalid (baseOffset == -1). Fall back to the end of the
+    // text so the tag still inserts instead of throwing / no-op'ing.
+    final cursorPosition = (!selection.isValid || selection.baseOffset < 0)
+        ? text.length
+        : selection.baseOffset.clamp(0, text.length);
     final beforeCursor = text.substring(0, cursorPosition);
     final afterCursor = text.substring(cursorPosition);
 
@@ -163,7 +165,8 @@ class TagSuggestionHelper {
     // outfit tags through concealment, with `nsfw` if dishevelled), not the
     // bracketed label. Falls back to the label if no expansion was attached.
     if (tag.typeName == 'saved_character') {
-      final expansion = (tag.expansion != null && tag.expansion!.trim().isNotEmpty)
+      final expansion =
+          (tag.expansion != null && tag.expansion!.trim().isNotEmpty)
           ? tag.expansion!.trim()
           : tag.tag;
       final newBeforeCursor = "$prefix$spacer$expansion, ";
@@ -179,7 +182,9 @@ class TagSuggestionHelper {
     final currentWord = currentSection.trimLeft();
     final currentWordLower = currentWord.toLowerCase();
     String strengthPrefix = '';
-    final strengthMatch = RegExp(r'^(-?\d+(?:\.\d+)?::)').firstMatch(currentWord);
+    final strengthMatch = RegExp(
+      r'^(-?\d+(?:\.\d+)?::)',
+    ).firstMatch(currentWord);
     if (strengthMatch != null) {
       strengthPrefix = strengthMatch.group(1)!;
     }
@@ -196,7 +201,8 @@ class TagSuggestionHelper {
     }
 
     final insertText = tag.matchedAlias ?? tag.tag;
-    final newBeforeCursor = "$prefix$spacer$strengthPrefix$categoryPrefix$insertText, ";
+    final newBeforeCursor =
+        "$prefix$spacer$strengthPrefix$categoryPrefix$insertText, ";
     controller.value = TextEditingValue(
       text: newBeforeCursor + afterCursor,
       selection: TextSelection.collapsed(offset: newBeforeCursor.length),
@@ -207,7 +213,10 @@ class TagSuggestionHelper {
   /// skipping any tag already present (case-insensitive). Used to route a saved
   /// character's negative tags to the appropriate negative target when its
   /// autocomplete entry is picked. No-op when [negatives] is blank.
-  static void appendNegatives(TextEditingController controller, String? negatives) {
+  static void appendNegatives(
+    TextEditingController controller,
+    String? negatives,
+  ) {
     final toAdd = (negatives ?? '').trim();
     if (toAdd.isEmpty) return;
 
@@ -227,7 +236,8 @@ class TagSuggestionHelper {
     if (fresh.isEmpty) return;
 
     final joined = fresh.join(', ');
-    final needsSep = existing.trim().isNotEmpty && !existing.trimRight().endsWith(',');
+    final needsSep =
+        existing.trim().isNotEmpty && !existing.trimRight().endsWith(',');
     final newText = existing.trim().isEmpty
         ? '$joined, '
         : '${existing.trimRight()}${needsSep ? ', ' : ' '}$joined, ';

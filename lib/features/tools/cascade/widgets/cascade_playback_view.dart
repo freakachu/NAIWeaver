@@ -236,6 +236,15 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
 
   Widget _buildCastingSheet(CascadeNotifier notifier, TagService tagService) {
     final l = context.l;
+    final state = notifier.state;
+    final beatIndex = state.selectedBeatIndex ?? 0;
+    final beats = state.activeCascade?.beats ?? const [];
+    // Appearances are stored cascade-wide by cast index. Show one field per
+    // cast member on the selected beat, in slot order, each bound to that
+    // member's appearance so the field survives slot removal/reorder.
+    final castOnBeat = (beatIndex >= 0 && beatIndex < beats.length)
+        ? beats[beatIndex].characterSlots.map((s) => s.castIndex).toList()
+        : const <int>[];
 
     return Column(
       children: [
@@ -244,8 +253,9 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
           child: ListView.builder(
             primary: false,
             scrollDirection: Axis.horizontal,
-            itemCount: notifier.state.characterAppearances.length,
-            itemBuilder: (context, index) {
+            itemCount: castOnBeat.length,
+            itemBuilder: (context, slot) {
+              final index = castOnBeat[slot];
               final focusNode = _appearanceFocusNodes.putIfAbsent(index, () => FocusNode());
               return Container(
                 width: 150,
@@ -689,9 +699,14 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                 canRequestFocus: false,
                 onTap: () {
                   cascadeNotifier.selectBeat(index);
-                  // Push preview to main viewer if it exists
+                  // Push preview to main viewer if it exists, and adopt that
+                  // beat's saved filename so the album picker checks *this*
+                  // image rather than the last generated one.
                   if (preview != null) {
                     genNotifier.setGeneratedImage(preview);
+                    genNotifier.adoptSavedBasename(
+                      cascadeNotifier.state.beatSavedBasenames[index],
+                    );
                   }
                 },
                 child: Container(
@@ -741,7 +756,7 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                             appearances: state.characterAppearances,
                             globalSceneTags: state.globalSceneTags,
                             globalStyle: state.globalInjection,
-                            useCoords: state.activeCascade!.useCoords,
+                            useCoords: state.activeCascade!.effectiveUseCoords(currentBeat),
                             activeStyleNames: currentBeat.activeStyleNames,
                             availableStyles: genNotifier.state.styles,
                           );
@@ -754,6 +769,10 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
                         final result = await genNotifier.generateCascadeBeat(request);
                         if (result != null) {
                           cascadeNotifier.setBeatPreview(currentIndex, result);
+                          final saved = genNotifier.lastSavedBasename;
+                          if (saved != null) {
+                            cascadeNotifier.setBeatSavedBasename(currentIndex, saved);
+                          }
                           if (currentIndex < totalBeats - 1) {
                             cascadeNotifier.selectBeat(currentIndex + 1);
                           }

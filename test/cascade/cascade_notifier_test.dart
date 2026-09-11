@@ -12,15 +12,15 @@ import 'package:naiweaver/features/tools/cascade/providers/cascade_notifier.dart
 Uint8List _preview(int tag) => Uint8List.fromList([tag]);
 
 CascadeBeat _beat() => CascadeBeat(
-      characterSlots: [BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2))],
-      environmentTags: '',
-    );
+  characterSlots: [BeatCharacterSlot(position: NaiCoordinate(x: 2, y: 2))],
+  environmentTags: '',
+);
 
 PromptCascade _cascade(int beatCount) => PromptCascade(
-      name: 'test',
-      characterCount: 1,
-      beats: List.generate(beatCount, (_) => _beat()),
-    );
+  name: 'test',
+  characterCount: 1,
+  beats: List.generate(beatCount, (_) => _beat()),
+);
 
 /// Seeds a notifier with [beatCount] beats and a preview+caption on each,
 /// tagged by index so re-association is observable.
@@ -39,7 +39,9 @@ void main() {
 
   group('CascadeNotifier cast-time map remapping', () {
     test('removeBeat drops the removed beat and shifts later entries down', () {
-      final n = _seeded(4); // beats 0,1,2,3 each with preview/caption tagged by index
+      final n = _seeded(
+        4,
+      ); // beats 0,1,2,3 each with preview/caption tagged by index
       n.removeBeat(1);
 
       final s = n.state;
@@ -72,6 +74,35 @@ void main() {
       expect(s.beatCaptions[2], 'caption-1');
       expect(s.beatCaptions[3], 'caption-2');
     });
+
+    test('beatSavedBasenames follow clone/remove/reorder like previews', () {
+      final n = _seeded(3);
+      n.setBeatSavedBasename(0, 'a.png');
+      n.setBeatSavedBasename(1, 'b.png');
+      n.setBeatSavedBasename(2, 'c.png');
+
+      n.cloneBeat(0);
+      expect(n.state.beatSavedBasenames[0], 'a.png');
+      expect(n.state.beatSavedBasenames.containsKey(1), isFalse);
+      expect(n.state.beatSavedBasenames[2], 'b.png');
+      expect(n.state.beatSavedBasenames[3], 'c.png');
+
+      n.removeBeat(2); // drop old beat 1 ('b.png')
+      expect(n.state.beatSavedBasenames[0], 'a.png');
+      expect(n.state.beatSavedBasenames.containsKey(1), isFalse);
+      expect(n.state.beatSavedBasenames[2], 'c.png');
+    });
+
+    test(
+      'recordBasenameForImage binds the filename to the matching preview',
+      () {
+        final n = _seeded(2);
+        final img = n.state.beatPreviews[1]!;
+        n.recordBasenameForImage(img, 'beat-1.png');
+        expect(n.state.beatSavedBasenames[1], 'beat-1.png');
+        expect(n.state.beatSavedBasenames.containsKey(0), isFalse);
+      },
+    );
 
     test('reorderBeats carries each beat\'s preview to its new position', () {
       final n = _seeded(3); // beats 0,1,2
@@ -128,6 +159,202 @@ void main() {
       expect(n.state.globalSceneTags, '');
       expect(n.state.beatPreviews, isEmpty);
       expect(n.state.beatCaptions, isEmpty);
+    });
+  });
+
+  group('CascadeNotifier per-beat characters', () {
+    test('addCharacterToActiveBeat grows the beat and the cast roster', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1);
+
+      n.addCharacterToActiveBeat();
+
+      final beat = n.state.activeCascade!.beats.first;
+      expect(beat.characterSlots.length, 2);
+      expect(n.state.activeCascade!.characterCount, 2);
+      expect(n.state.characterAppearances.length, 2);
+    });
+
+    test(
+      'removeCharacterFromActiveBeat drops the slot and shrinks roster when unused',
+      () {
+        final n = CascadeNotifier();
+        n.createNewCascade('cast', 2);
+        n.updateAppearance(1, 'second');
+
+        n.removeCharacterFromActiveBeat(1);
+
+        expect(n.state.activeCascade!.beats.first.characterSlots.length, 1);
+        expect(n.state.activeCascade!.characterCount, 1);
+        expect(n.state.characterAppearances, ['']);
+      },
+    );
+
+    test(
+      'removing a slot from one beat does not shrink roster used by another beat',
+      () {
+        final n = CascadeNotifier();
+        n.createNewCascade('cast', 2);
+        n.addBeat();
+        n.selectBeat(0);
+        n.removeCharacterFromActiveBeat(1);
+
+        expect(n.state.activeCascade!.beats[0].characterSlots.length, 1);
+        expect(n.state.activeCascade!.beats[1].characterSlots.length, 2);
+        expect(n.state.activeCascade!.characterCount, 2);
+        expect(n.state.characterAppearances.length, 2);
+      },
+    );
+
+    test('removing the first slot keeps the second character\'s identity', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      n.updateAppearance(0, 'red hair');
+      n.updateAppearance(1, 'black hair');
+      n.addBeat(); // beat 1 also has C1 + C2
+
+      n.removeCharacterFromActiveBeat(0); // beat 1: C2 alone
+
+      final solo = n.state.activeCascade!.beats[1].characterSlots.single;
+      expect(solo.castIndex, 1);
+      // Cast is unchanged because beat 0 still uses both characters.
+      expect(n.state.activeCascade!.characterCount, 2);
+      expect(n.state.characterAppearances, ['red hair', 'black hair']);
+    });
+
+    test('a character no beat uses is dropped and the rest renumbered', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 3);
+      n.updateAppearance(0, 'a');
+      n.updateAppearance(1, 'b');
+      n.updateAppearance(2, 'c');
+
+      n.removeCharacterFromActiveBeat(0); // C1 gone everywhere
+
+      final slots = n.state.activeCascade!.beats.single.characterSlots;
+      expect(slots.map((s) => s.castIndex), [0, 1]);
+      expect(n.state.activeCascade!.characterCount, 2);
+      expect(n.state.characterAppearances, ['b', 'c']);
+    });
+
+    test('addCharacterToActiveBeat can re-add an existing cast member', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      n.addBeat();
+      n.removeCharacterFromActiveBeat(0); // beat 1: C2 only
+      expect(n.castMembersMissingFromActiveBeat(), [0]);
+
+      n.addCharacterToActiveBeat(castIndex: 0);
+
+      final slots = n.state.activeCascade!.beats[1].characterSlots;
+      expect(slots.map((s) => s.castIndex), [1, 0]);
+      expect(n.state.activeCascade!.characterCount, 2);
+      expect(n.castMembersMissingFromActiveBeat(), isEmpty);
+      // Same member twice on one beat is refused.
+      n.addCharacterToActiveBeat(castIndex: 0);
+      expect(n.state.activeCascade!.beats[1].characterSlots.length, 2);
+    });
+
+    test('addCharacterToActiveBeat without castIndex grows the cast', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1);
+      n.addCharacterToActiveBeat();
+      final slots = n.state.activeCascade!.beats.single.characterSlots;
+      expect(slots.map((s) => s.castIndex), [0, 1]);
+      expect(n.state.activeCascade!.characterCount, 2);
+    });
+
+    test('addBeat inherits the previous beat cast, not its slot count', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      n.addBeat(); // beat 1: C1 + C2
+      n.removeCharacterFromActiveBeat(0); // beat 1: C2 only
+      n.addBeat(); // beat 2 should open with C2 only
+      final added = n.state.activeCascade!.beats.last.characterSlots;
+      expect(added.map((s) => s.castIndex), [1]);
+      expect(n.state.activeCascade!.characterCount, 2);
+    });
+
+    test('removing a slot prunes action tags that lost their partner', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 3);
+      final beat = n.state.activeCascade!.beats.single;
+      n.updateActiveBeat(
+        beat.copyWith(
+          characterSlots: [
+            beat.characterSlots[0].copyWith(actionTags: ['source#hugging']),
+            beat.characterSlots[1].copyWith(
+              actionTags: ['target#hugging', 'mutual#holding hands'],
+            ),
+            beat.characterSlots[2].copyWith(
+              actionTags: ['mutual#holding hands'],
+            ),
+          ],
+        ),
+      );
+
+      n.removeCharacterFromActiveBeat(0); // the hugger leaves
+
+      final slots = n.state.activeCascade!.beats.single.characterSlots;
+      expect(slots[0].actionTags, ['mutual#holding hands']);
+      expect(slots[1].actionTags, ['mutual#holding hands']);
+    });
+
+    test('reorderCharactersInActiveBeat keeps cast identity with the slot', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      n.reorderCharactersInActiveBeat(0, 2);
+      final slots = n.state.activeCascade!.beats.single.characterSlots;
+      expect(slots.map((s) => s.castIndex), [1, 0]);
+    });
+
+    test('reorderCharactersInActiveBeat swaps slot data', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 2);
+      final beat = n.state.activeCascade!.beats.first;
+      n.updateActiveBeat(
+        beat.copyWith(
+          characterSlots: [
+            beat.characterSlots[0].copyWith(positivePrompt: 'alpha'),
+            beat.characterSlots[1].copyWith(positivePrompt: 'beta'),
+          ],
+        ),
+      );
+
+      n.reorderCharactersInActiveBeat(0, 2);
+
+      final slots = n.state.activeCascade!.beats.first.characterSlots;
+      expect(slots.map((s) => s.positivePrompt).toList(), ['beta', 'alpha']);
+    });
+
+    test('setActiveBeatUseCoords overrides cascade-level placement', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1, useCoords: true);
+      expect(
+        n.state.activeCascade!.effectiveUseCoords(
+          n.state.activeCascade!.beats.first,
+        ),
+        isTrue,
+      );
+
+      n.setActiveBeatUseCoords(false);
+
+      final beat = n.state.activeCascade!.beats.first;
+      expect(beat.useCoords, isFalse);
+      expect(n.state.activeCascade!.effectiveUseCoords(beat), isFalse);
+      expect(n.state.activeCascade!.useCoords, isTrue);
+    });
+
+    test('addBeat copies the last beat cast and placement', () {
+      final n = CascadeNotifier();
+      n.createNewCascade('cast', 1, useCoords: true);
+      n.addCharacterToActiveBeat();
+      n.setActiveBeatUseCoords(false);
+      n.addBeat();
+
+      final added = n.state.activeCascade!.beats.last;
+      expect(added.characterSlots.length, 2);
+      expect(added.useCoords, isFalse);
     });
   });
 }

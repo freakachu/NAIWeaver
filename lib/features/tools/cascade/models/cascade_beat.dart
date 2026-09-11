@@ -3,6 +3,12 @@ import '../../../generation/models/nai_character.dart';
 class BeatCharacterSlot {
   final NaiCoordinate position;
 
+  /// Which cast member this slot renders. Cast-time appearances
+  /// ([CascadeState.characterAppearances]) are keyed by this index, so a slot
+  /// keeps its character when other slots on the beat are removed or
+  /// reordered. Legacy beats without the field fall back to slot position.
+  final int castIndex;
+
   /// The action tags for this slot, e.g. "source#hugging", "target#hugging",
   /// "mutual#holding hands". A slot can hold multiple interactions at once
   /// (e.g. a character that is the source of one action and the target of
@@ -14,12 +20,18 @@ class BeatCharacterSlot {
 
   BeatCharacterSlot({
     required this.position,
+    this.castIndex = 0,
     this.actionTags = const [],
     this.positivePrompt = "",
     this.negativePrompt = "",
   });
 
-  factory BeatCharacterSlot.fromJson(Map<String, dynamic> json) {
+  /// [fallbackCastIndex] is the slot's position in its beat, used when the
+  /// JSON predates per-slot cast identity.
+  factory BeatCharacterSlot.fromJson(
+    Map<String, dynamic> json, {
+    int fallbackCastIndex = 0,
+  }) {
     // Backward-compatible: detect the legacy single-string `actionTag` field
     // vs the new `actionTags` list. Old saved cascades carry `actionTag`.
     final List<String> tags;
@@ -31,6 +43,7 @@ class BeatCharacterSlot {
     }
     return BeatCharacterSlot(
       position: NaiCoordinate.fromJson(json['position']),
+      castIndex: (json['castIndex'] as int?) ?? fallbackCastIndex,
       actionTags: tags,
       positivePrompt: json['positivePrompt'] ?? "",
       negativePrompt: json['negativePrompt'] ?? "",
@@ -38,20 +51,23 @@ class BeatCharacterSlot {
   }
 
   Map<String, dynamic> toJson() => {
-        'position': position.toJson(),
-        'actionTags': actionTags,
-        'positivePrompt': positivePrompt,
-        'negativePrompt': negativePrompt,
-      };
+    'position': position.toJson(),
+    'castIndex': castIndex,
+    'actionTags': actionTags,
+    'positivePrompt': positivePrompt,
+    'negativePrompt': negativePrompt,
+  };
 
   BeatCharacterSlot copyWith({
     NaiCoordinate? position,
+    int? castIndex,
     List<String>? actionTags,
     String? positivePrompt,
     String? negativePrompt,
   }) {
     return BeatCharacterSlot(
       position: position ?? this.position,
+      castIndex: castIndex ?? this.castIndex,
       actionTags: actionTags ?? this.actionTags,
       positivePrompt: positivePrompt ?? this.positivePrompt,
       negativePrompt: negativePrompt ?? this.negativePrompt,
@@ -79,6 +95,10 @@ class CascadeBeat {
   final int height;
   final List<String> activeStyleNames;
 
+  /// Per-beat override of [PromptCascade.useCoords]. `null` inherits the
+  /// cascade-level setting so legacy beats keep their original behaviour.
+  final bool? useCoords;
+
   CascadeBeat({
     required this.characterSlots,
     required this.environmentTags,
@@ -89,33 +109,39 @@ class CascadeBeat {
     this.width = 832,
     this.height = 1216,
     this.activeStyleNames = const [],
+    this.useCoords,
   });
 
   factory CascadeBeat.fromJson(Map<String, dynamic> json) => CascadeBeat(
-        characterSlots: (json['characterSlots'] as List)
-            .map((e) => BeatCharacterSlot.fromJson(e))
-            .toList(),
-        sceneTags: json['sceneTags'] ?? "",
-        environmentTags: json['environmentTags'],
-        sampler: json['sampler'] ?? "k_euler_ancestral",
-        steps: json['steps'] ?? 28,
-        scale: (json['scale'] as num?)?.toDouble() ?? 6.0,
-        width: json['width'] ?? 832,
-        height: json['height'] ?? 1216,
-        activeStyleNames: (json['activeStyleNames'] as List?)?.cast<String>() ?? [],
-      );
+    characterSlots: [
+      for (final (i, e) in (json['characterSlots'] as List).indexed)
+        BeatCharacterSlot.fromJson(e, fallbackCastIndex: i),
+    ],
+    sceneTags: json['sceneTags'] ?? "",
+    environmentTags: json['environmentTags'],
+    sampler: json['sampler'] ?? "k_euler_ancestral",
+    steps: json['steps'] ?? 28,
+    scale: (json['scale'] as num?)?.toDouble() ?? 6.0,
+    width: json['width'] ?? 832,
+    height: json['height'] ?? 1216,
+    activeStyleNames: (json['activeStyleNames'] as List?)?.cast<String>() ?? [],
+    useCoords: json['useCoords'] as bool?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'characterSlots': characterSlots.map((e) => e.toJson()).toList(),
-        'sceneTags': sceneTags,
-        'environmentTags': environmentTags,
-        'sampler': sampler,
-        'steps': steps,
-        'scale': scale,
-        'width': width,
-        'height': height,
-        'activeStyleNames': activeStyleNames,
-      };
+    'characterSlots': characterSlots.map((e) => e.toJson()).toList(),
+    'sceneTags': sceneTags,
+    'environmentTags': environmentTags,
+    'sampler': sampler,
+    'steps': steps,
+    'scale': scale,
+    'width': width,
+    'height': height,
+    'activeStyleNames': activeStyleNames,
+    if (useCoords != null) 'useCoords': useCoords,
+  };
+
+  static const _unset = Object();
 
   CascadeBeat copyWith({
     List<BeatCharacterSlot>? characterSlots,
@@ -127,6 +153,7 @@ class CascadeBeat {
     int? width,
     int? height,
     List<String>? activeStyleNames,
+    Object? useCoords = _unset,
   }) {
     return CascadeBeat(
       characterSlots: characterSlots ?? this.characterSlots,
@@ -138,6 +165,9 @@ class CascadeBeat {
       width: width ?? this.width,
       height: height ?? this.height,
       activeStyleNames: activeStyleNames ?? this.activeStyleNames,
+      useCoords: identical(useCoords, _unset)
+          ? this.useCoords
+          : useCoords as bool?,
     );
   }
 }

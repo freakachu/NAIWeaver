@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/theme/vision_tokens.dart';
 import '../../../core/widgets/tag_suggestion_overlay.dart';
 import '../../../core/services/tag_service.dart';
 import '../models/nai_character.dart';
@@ -15,6 +16,11 @@ class ActionInteractionSheet extends StatefulWidget {
   final Function(NaiInteraction) onSave;
   final VoidCallback onDelete;
 
+  /// When set, the sheet treats this character as the one whose link button
+  /// was pressed and shows a partner picker plus forward/reverse/mutual
+  /// direction controls. When null, the original two-party cycle is used.
+  final int? anchorIndex;
+
   const ActionInteractionSheet({
     super.key,
     required this.sourceIndices,
@@ -24,6 +30,7 @@ class ActionInteractionSheet extends StatefulWidget {
     this.initialInteraction,
     required this.onSave,
     required this.onDelete,
+    this.anchorIndex,
   });
 
   @override
@@ -36,6 +43,10 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
   late InteractionType _type;
   late List<int> _sourceIndices;
   late List<int> _targetIndices;
+  int? _partnerIndex;
+
+  /// 0 = anchor → partner, 1 = mutual, 2 = anchor ← partner (reverse).
+  int _dirMode = 0;
 
   List<DanbooruTag> _actionSuggestions = [];
   bool _saved = false;
@@ -45,11 +56,48 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
   @override
   void initState() {
     super.initState();
-    _actionController = TextEditingController(text: widget.initialInteraction?.actionName ?? "");
+    _actionController = TextEditingController(
+      text: widget.initialInteraction?.actionName ?? "",
+    );
     _actionFocusNode = FocusNode();
     _type = widget.initialInteraction?.type ?? widget.initialType;
-    _sourceIndices = widget.initialInteraction?.sourceCharacterIndices.toList() ?? widget.sourceIndices.toList();
-    _targetIndices = widget.initialInteraction?.targetCharacterIndices.toList() ?? widget.targetIndices.toList();
+    _sourceIndices =
+        widget.initialInteraction?.sourceCharacterIndices.toList() ??
+        widget.sourceIndices.toList();
+    _targetIndices =
+        widget.initialInteraction?.targetCharacterIndices.toList() ??
+        widget.targetIndices.toList();
+    final anchor = widget.anchorIndex;
+    if (anchor != null) {
+      final others = [
+        for (int i = 0; i < widget.characters.length; i++)
+          if (i != anchor) i,
+      ];
+      int? pickPartner(Iterable<int> from) {
+        for (final i in from) {
+          if (i != anchor) return i;
+        }
+        return others.isEmpty ? null : others.first;
+      }
+
+      final existing = widget.initialInteraction;
+      if (existing != null) {
+        if (existing.type == InteractionType.mutual) {
+          _dirMode = 1;
+          _partnerIndex = pickPartner(existing.sourceCharacterIndices);
+        } else if (existing.sourceCharacterIndices.contains(anchor)) {
+          _dirMode = 0;
+          _partnerIndex = pickPartner(existing.targetCharacterIndices);
+        } else {
+          _dirMode = 2;
+          _partnerIndex = pickPartner(existing.sourceCharacterIndices);
+        }
+      } else {
+        _partnerIndex = pickPartner(widget.targetIndices);
+        _dirMode = widget.initialType == InteractionType.mutual ? 1 : 0;
+      }
+      _applyDirMode();
+    }
     _actionController.addListener(_updateActionSuggestions);
   }
 
@@ -63,18 +111,25 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
     if (!mounted) return;
     final text = _actionController.text;
     if (text.isEmpty) {
-      if (_actionSuggestions.isNotEmpty) setState(() => _actionSuggestions = []);
+      if (_actionSuggestions.isNotEmpty) {
+        setState(() => _actionSuggestions = []);
+      }
       return;
     }
     String query = text;
     if (query.startsWith('/f ')) query = query.substring(3);
     if (query.length < 2) {
-      if (_actionSuggestions.isNotEmpty) setState(() => _actionSuggestions = []);
+      if (_actionSuggestions.isNotEmpty) {
+        setState(() => _actionSuggestions = []);
+      }
       return;
     }
-    final suggestions = _tagService?.getSuggestions(query)
-        .where((tag) => tag.typeName.toLowerCase() == 'general')
-        .toList() ?? [];
+    final suggestions =
+        _tagService
+            ?.getSuggestions(query)
+            .where((tag) => tag.typeName.toLowerCase() == 'general')
+            .toList() ??
+        [];
     setState(() => _actionSuggestions = suggestions);
   }
 
@@ -94,12 +149,47 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
     if (_saved || _deleted) return;
     if (_actionController.text.trim().isEmpty) return;
     _saved = true;
-    widget.onSave(NaiInteraction(
-      sourceCharacterIndices: _sourceIndices,
-      targetCharacterIndices: _targetIndices,
-      actionName: _actionController.text.trim(),
-      type: _type,
-    ));
+    widget.onSave(
+      NaiInteraction(
+        sourceCharacterIndices: _sourceIndices,
+        targetCharacterIndices: _targetIndices,
+        actionName: _actionController.text.trim(),
+        type: _type,
+      ),
+    );
+  }
+
+  void _applyDirMode() {
+    final anchor = widget.anchorIndex;
+    final partner = _partnerIndex;
+    if (anchor == null || partner == null) return;
+    if (_dirMode == 1) {
+      _type = InteractionType.mutual;
+      _sourceIndices = [anchor, partner];
+      _targetIndices = [];
+    } else if (_dirMode == 2) {
+      _type = InteractionType.sourceTarget;
+      _sourceIndices = [partner];
+      _targetIndices = [anchor];
+    } else {
+      _type = InteractionType.sourceTarget;
+      _sourceIndices = [anchor];
+      _targetIndices = [partner];
+    }
+  }
+
+  void _cycleDirMode() {
+    setState(() {
+      _dirMode = (_dirMode + 1) % 3;
+      _applyDirMode();
+    });
+  }
+
+  String _anchorDirectionLabel() {
+    final left = _charName(widget.anchorIndex!);
+    final right = _partnerIndex != null ? _charName(_partnerIndex!) : '?';
+    const arrows = ['\u2192', '\u2194', '\u2190']; // →  ↔  ←
+    return '$left ${arrows[_dirMode]} $right';
   }
 
   void _toggleDirection() {
@@ -133,7 +223,9 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
   }
 
   String _charName(int index) {
-    if (index >= 0 && index < widget.characters.length && widget.characters[index].name.isNotEmpty) {
+    if (index >= 0 &&
+        index < widget.characters.length &&
+        widget.characters[index].name.isNotEmpty) {
       return widget.characters[index].name;
     }
     return 'C${index + 1}';
@@ -146,6 +238,107 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
     final src = _sourceIndices.map(_charName).join(', ');
     final tgt = _targetIndices.map(_charName).join(', ');
     return '$src \u2192 $tgt';
+  }
+
+  Widget _buildAnchorDirection(VisionTokens t) {
+    final anchor = widget.anchorIndex!;
+    final partners = [
+      for (int i = 0; i < widget.characters.length; i++)
+        if (i != anchor) i,
+    ];
+    Widget chip({
+      required String label,
+      required bool selected,
+      required VoidCallback onTap,
+    }) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? t.accent.withValues(alpha: 0.2) : t.surfaceHigh,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: selected ? t.accent : t.borderMedium),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? t.accent : t.textPrimary,
+              fontSize: t.fontSize(10),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'WITH',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: t.fontSize(8),
+            letterSpacing: 2,
+            color: t.textDisabled,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (partners.isEmpty)
+          Text(
+            'Add another character to set an interaction',
+            style: TextStyle(color: t.textDisabled, fontSize: t.fontSize(10)),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final i in partners)
+                chip(
+                  label: _charName(i),
+                  selected: _partnerIndex == i,
+                  onTap: () => setState(() {
+                    _partnerIndex = i;
+                    _applyDirMode();
+                  }),
+                ),
+            ],
+          ),
+        if (partners.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: _cycleDirMode,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: t.borderMedium),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(
+                _anchorDirectionLabel(),
+                style: TextStyle(
+                  color: t.textPrimary,
+                  fontSize: t.fontSize(11),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -174,107 +367,143 @@ class _ActionInteractionSheetState extends State<ActionInteractionSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'INTERACTION EDITOR',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: t.fontSize(12),
-                  letterSpacing: 4,
-                  color: t.textPrimary,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'INTERACTION EDITOR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: t.fontSize(12),
+                    letterSpacing: 4,
+                    color: t.textPrimary,
+                  ),
+                ),
+                if (widget.initialInteraction != null)
+                  IconButton(
+                    onPressed: () {
+                      _deleted = true;
+                      widget.onDelete();
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: t.accentDanger,
+                      size: 18,
+                    ),
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'ACTION',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: t.fontSize(9),
+                letterSpacing: 2,
+                color: t.textDisabled,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _actionController,
+              focusNode: _actionFocusNode,
+              autofocus: true,
+              style: TextStyle(
+                fontSize: t.fontSize(13),
+                color: t.textSecondary,
+                height: 1.4,
+              ),
+              decoration: InputDecoration(
+                hintText: 'ENTER ACTION (e.g., hugging)',
+                hintStyle: TextStyle(
+                  fontSize: t.fontSize(9),
+                  color: t.textMinimal,
+                  letterSpacing: 2,
+                ),
+                fillColor: t.surfaceHigh,
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: t.textMinimal),
+                ),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+            ),
+            TagSuggestionOverlay(
+              suggestions: _actionSuggestions,
+              onTagSelected: _onActionTagSelected,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'DIRECTION',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: t.fontSize(9),
+                letterSpacing: 2,
+                color: t.textDisabled,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (widget.anchorIndex != null)
+              _buildAnchorDirection(t)
+            else
+              OutlinedButton(
+                onPressed: _toggleDirection,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: t.borderMedium),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    _getDirectionLabel(),
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: t.fontSize(11),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-              if (widget.initialInteraction != null)
-                IconButton(
-                  onPressed: () {
-                    _deleted = true;
-                    widget.onDelete();
-                    Navigator.pop(context);
-                  },
-                  icon: Icon(Icons.delete_outline, color: t.accentDanger, size: 18),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                _saveChanges();
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: t.accent,
+                foregroundColor: t.background,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
                 ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'ACTION',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: t.fontSize(9),
-              letterSpacing: 2,
-              color: t.textDisabled,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _actionController,
-            focusNode: _actionFocusNode,
-            autofocus: true,
-            style: TextStyle(fontSize: t.fontSize(13), color: t.textSecondary, height: 1.4),
-            decoration: InputDecoration(
-              hintText: 'ENTER ACTION (e.g., hugging)',
-              hintStyle: TextStyle(fontSize: t.fontSize(9), color: t.textMinimal, letterSpacing: 2),
-              fillColor: t.surfaceHigh,
-              filled: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: t.textMinimal)),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-          ),
-          TagSuggestionOverlay(
-            suggestions: _actionSuggestions,
-            onTagSelected: _onActionTagSelected,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'DIRECTION',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: t.fontSize(9),
-              letterSpacing: 2,
-              color: t.textDisabled,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: _toggleDirection,
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: t.borderMedium),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              alignment: Alignment.centerLeft,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
               child: Text(
-                _getDirectionLabel(),
-                style: TextStyle(color: t.textPrimary, fontSize: t.fontSize(11), fontWeight: FontWeight.bold),
+                'SAVE INTERACTION',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                  fontSize: t.fontSize(10),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              _saveChanges();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: t.accent,
-              foregroundColor: t.background,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            child: Text(
-              'SAVE INTERACTION',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: t.fontSize(10)),
-            ),
-          ),
-        ],
+          ],
         ),
       ),
     );

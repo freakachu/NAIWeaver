@@ -793,7 +793,19 @@ class GenerationNotifier extends ChangeNotifier {
   }
 
   void setGeneratedImage(Uint8List? image) {
+    if (!identical(_state.generatedImage, image)) {
+      _lastSavedBasename = null;
+      _imageSaved = false;
+    }
     _state = _state.copyWith(generatedImage: image);
+    notifyListeners();
+  }
+
+  /// Point album/save tracking at a file already on disk for the image now
+  /// on screen (e.g. switching cascade beats). Null means this image is unsaved.
+  void adoptSavedBasename(String? basename) {
+    _lastSavedBasename = basename;
+    _imageSaved = basename != null;
     notifyListeners();
   }
 
@@ -1787,6 +1799,7 @@ class GenerationNotifier extends ChangeNotifier {
 
       _lastMetadata = result.metadata;
       _imageSaved = false;
+      _lastSavedBasename = null;
       _state = _state.copyWith(generatedImage: result.imageBytes);
 
       if (_state.autoSaveImages) {
@@ -1794,6 +1807,7 @@ class GenerationNotifier extends ChangeNotifier {
         if (savedFile != null) {
           _galleryNotifier?.addFile(savedFile, DateTime.now());
           _imageSaved = true;
+          _lastSavedBasename = p.basename(savedFile.path);
           await _autoExportIfEnabled(result.imageBytes);
         }
       }
@@ -1871,6 +1885,7 @@ class GenerationNotifier extends ChangeNotifier {
 
       _lastMetadata = result.metadata;
       _imageSaved = false;
+      _lastSavedBasename = null;
       _state = _state.copyWith(generatedImage: finalBytes);
 
       if (_state.autoSaveImages) {
@@ -1892,6 +1907,7 @@ class GenerationNotifier extends ChangeNotifier {
         if (savedFile != null) {
           _galleryNotifier?.addFile(savedFile, DateTime.now());
           _imageSaved = true;
+          _lastSavedBasename = p.basename(savedFile.path);
           await _autoExportIfEnabled(finalBytes);
           if (srcPath != null) {
             try { await File(srcPath).delete(); } catch (_) {}

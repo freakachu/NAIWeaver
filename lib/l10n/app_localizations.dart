@@ -3316,6 +3316,48 @@ abstract class AppLocalizations {
   /// **'Link Action'**
   String get cascadeLinkAction;
 
+  /// No description provided for @cascadeCastMemberN.
+  ///
+  /// In en, this message translates to:
+  /// **'CHARACTER {n}'**
+  String cascadeCastMemberN(int n);
+
+  /// No description provided for @cascadeNewCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'New character'**
+  String get cascadeNewCharacter;
+
+  /// No description provided for @cascadeAddCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add character'**
+  String get cascadeAddCharacter;
+
+  /// No description provided for @cascadeRemoveCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove character'**
+  String get cascadeRemoveCharacter;
+
+  /// No description provided for @cascadePlacementManual.
+  ///
+  /// In en, this message translates to:
+  /// **'MANUAL'**
+  String get cascadePlacementManual;
+
+  /// No description provided for @cascadePlacementAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get cascadePlacementAi;
+
+  /// No description provided for @cascadeNoCharactersInBeat.
+  ///
+  /// In en, this message translates to:
+  /// **'No characters in this beat. Add one to place or prompt them.'**
+  String get cascadeNoCharactersInBeat;
+
   /// No description provided for @cascadeBeatSettings.
   ///
   /// In en, this message translates to:

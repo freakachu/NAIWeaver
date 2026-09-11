@@ -1977,9 +1977,10 @@ class _AppSettingsState extends State<AppSettings> {
 
   Widget _buildCreditsSection(VisionTokens t) {
     final l = context.l;
-    const names = ['Brudda', 'Uragan', 'Glockamoli', 'Perry Argoneco', 'Deadly Ham', 'baisumang', 'andreiagmu'];
+    const names = ['Brudda', 'Uragan', 'Glockamoli', 'Perry Argoneco', 'Deadly Ham', 'baisumang', 'andreiagmu', 'freakachu'];
     const linkedNames = {
       'andreiagmu': 'https://github.com/andreiagmu',
+      'freakachu': 'https://github.com/freakachu',
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -41,7 +41,7 @@ class NaiGridSelector extends StatelessWidget {
     }
 
     return AspectRatio(
-      aspectRatio: 1,
+      aspectRatio: aspectRatio > 0 ? aspectRatio : 1,
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: t.borderStrong),
@@ -58,7 +58,8 @@ class NaiGridSelector extends StatelessWidget {
           itemCount: 25,
           itemBuilder: (context, index) {
             final coord = NaiCoordinateUtils.getCoordinateFromIndex(index);
-            final isSelected = coord.x == selectedCoordinate.x &&
+            final isSelected =
+                coord.x == selectedCoordinate.x &&
                 coord.y == selectedCoordinate.y;
 
             return InkWell(
@@ -66,13 +67,9 @@ class NaiGridSelector extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? t.accent
-                      : t.textMinimal,
+                  color: isSelected ? t.accent : t.textMinimal,
                   borderRadius: BorderRadius.circular(4),
-                  border: isSelected
-                      ? null
-                      : Border.all(color: t.textMinimal),
+                  border: isSelected ? null : Border.all(color: t.textMinimal),
                 ),
               ),
             );
