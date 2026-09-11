@@ -80,9 +80,10 @@ class _DirectorViewState extends State<DirectorView> {
   }
 
   void _onFocusChanged() {
-    // Delay so a tap on the suggestion overlay can land before the list
-    // is cleared by the originating field losing focus.
-    Future.delayed(const Duration(milliseconds: 280), () {
+    // Clear suggestions when all prompt fields lose focus. The overlay is a
+    // TextFieldTapRegion, so tapping a chip does not count as tapping outside
+    // the field and never triggers this path.
+    Future.microtask(() {
       if (!mounted) return;
       final anyFocused =
           _sceneFocusNode.hasFocus ||

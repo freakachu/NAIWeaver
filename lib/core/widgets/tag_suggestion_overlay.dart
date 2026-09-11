@@ -95,140 +95,143 @@ class _TagSuggestionOverlayState extends State<TagSuggestionOverlay> {
               children: [
                 if (hasCharacterSuggestions) _honorToggle(context, t),
                 Flexible(
-                  child: Listener(
-                    onPointerSignal: (pointerSignal) {
-                      if (pointerSignal is PointerScrollEvent) {
-                        final newOffset =
-                            scrollController.offset +
-                            pointerSignal.scrollDelta.dy;
-                        scrollController.jumpTo(
-                          newOffset.clamp(
-                            0.0,
-                            scrollController.position.maxScrollExtent,
-                          ),
-                        );
-                      }
-                    },
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: List.generate(widget.suggestions.length, (
-                          index,
-                        ) {
-                          final tag = widget.suggestions[index];
-                          final color = TagSuggestionOverlay.tagColor(tag);
-                          final isHighlighted = index == widget.selectedIndex;
-                          // onTapDown fires before the originating TextField
-                          // unfocuses; onTap often never runs because the
-                          // overlay is rebuilt away on focus loss.
-                          return GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTapDown: (_) => _selectTag(tag),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isHighlighted
-                                    ? color.withValues(alpha: 0.35)
-                                    : color.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(2),
-                                border: Border.all(
-                                  color: isHighlighted
-                                      ? color.withValues(alpha: 0.8)
-                                      : color.withValues(alpha: 0.4),
-                                  width: isHighlighted ? 1.5 : 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  if (tag.matchedAlias != null) ...[
-                                    Text(
-                                      tag.matchedAlias!,
-                                      style: TextStyle(
-                                        color: color,
-                                        fontSize: t.fontSize(10),
-                                        fontWeight: FontWeight.bold,
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 1,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      ' → ',
-                                      style: TextStyle(
-                                        color: color.withValues(alpha: 0.5),
-                                        fontSize: t.fontSize(9),
-                                      ),
-                                    ),
-                                    Text(
-                                      tag.tag,
-                                      style: TextStyle(
-                                        color: color.withValues(alpha: 0.6),
-                                        fontSize: t.fontSize(9),
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 1,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ] else
-                                    Text(
-                                      tag.tag,
-                                      style: TextStyle(
-                                        color: color,
-                                        fontSize: t.fontSize(10),
-                                        fontWeight: FontWeight.bold,
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 1,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (tag.sourceId != null) ...[
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      context.read<TagService>().sourceBadge(
-                                            tag.sourceId,
-                                          ) ??
-                                          '',
-                                      style: TextStyle(
-                                        color: color.withValues(alpha: 0.55),
-                                        fontSize: t.fontSize(7),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                  if (!context
-                                          .read<PreferencesService>()
-                                          .hideTagValues &&
-                                      tag.typeName != 'category_shortcut' &&
-                                      tag.typeName != 'saved_character') ...[
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      NumberFormat.compact().format(tag.count),
-                                      style: TextStyle(
-                                        color: color.withValues(alpha: 0.4),
-                                        fontSize: t.fontSize(8),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
+                  // Part of the originating TextField's tap group: on desktop
+                  // a TextField unfocuses itself on pointer-down outside its
+                  // TapRegion, which would tear this overlay down before a
+                  // chip's onTap could fire. Inside the group, a chip tap
+                  // counts as "inside" the field and focus is kept.
+                  child: TextFieldTapRegion(
+                    child: Listener(
+                      onPointerSignal: (pointerSignal) {
+                        if (pointerSignal is PointerScrollEvent) {
+                          final newOffset =
+                              scrollController.offset +
+                              pointerSignal.scrollDelta.dy;
+                          scrollController.jumpTo(
+                            newOffset.clamp(
+                              0.0,
+                              scrollController.position.maxScrollExtent,
                             ),
                           );
-                        }),
+                        }
+                      },
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: List.generate(widget.suggestions.length, (
+                            index,
+                          ) {
+                            final tag = widget.suggestions[index];
+                            final color = TagSuggestionOverlay.tagColor(tag);
+                            final isHighlighted = index == widget.selectedIndex;
+                            return InkWell(
+                              onTap: () => _selectTag(tag),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isHighlighted
+                                      ? color.withValues(alpha: 0.35)
+                                      : color.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(2),
+                                  border: Border.all(
+                                    color: isHighlighted
+                                        ? color.withValues(alpha: 0.8)
+                                        : color.withValues(alpha: 0.4),
+                                    width: isHighlighted ? 1.5 : 0.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (tag.matchedAlias != null) ...[
+                                      Text(
+                                        tag.matchedAlias!,
+                                        style: TextStyle(
+                                          color: color,
+                                          fontSize: t.fontSize(10),
+                                          fontWeight: FontWeight.bold,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        ' → ',
+                                        style: TextStyle(
+                                          color: color.withValues(alpha: 0.5),
+                                          fontSize: t.fontSize(9),
+                                        ),
+                                      ),
+                                      Text(
+                                        tag.tag,
+                                        style: TextStyle(
+                                          color: color.withValues(alpha: 0.6),
+                                          fontSize: t.fontSize(9),
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else
+                                      Text(
+                                        tag.tag,
+                                        style: TextStyle(
+                                          color: color,
+                                          fontSize: t.fontSize(10),
+                                          fontWeight: FontWeight.bold,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (tag.sourceId != null) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        context.read<TagService>().sourceBadge(
+                                              tag.sourceId,
+                                            ) ??
+                                            '',
+                                        style: TextStyle(
+                                          color: color.withValues(alpha: 0.55),
+                                          fontSize: t.fontSize(7),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                    if (!context
+                                            .read<PreferencesService>()
+                                            .hideTagValues &&
+                                        tag.typeName != 'category_shortcut' &&
+                                        tag.typeName != 'saved_character') ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        NumberFormat.compact().format(tag.count),
+                                        style: TextStyle(
+                                          color: color.withValues(alpha: 0.4),
+                                          fontSize: t.fontSize(8),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
                       ),
                     ),
                   ),
