@@ -212,6 +212,7 @@ These projects were great resources and inspiration:
 
 - [@baisumang](https://github.com/baisumang) — Simplified Chinese translation
 - [@andreiagmu](https://github.com/andreiagmu)
+- [@freakachu](https://github.com/freakachu) — Cascade editor: per-beat roster, placement, and interaction targeting
 
 ## License
 
