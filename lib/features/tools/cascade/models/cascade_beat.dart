@@ -3,6 +3,12 @@ import '../../../generation/models/nai_character.dart';
 class BeatCharacterSlot {
   final NaiCoordinate position;
 
+  /// Which cast member this slot renders. Cast-time appearances
+  /// ([CascadeState.characterAppearances]) are keyed by this index, so a slot
+  /// keeps its character when other slots on the beat are removed or
+  /// reordered. Legacy beats without the field fall back to slot position.
+  final int castIndex;
+
   /// The action tags for this slot, e.g. "source#hugging", "target#hugging",
   /// "mutual#holding hands". A slot can hold multiple interactions at once
   /// (e.g. a character that is the source of one action and the target of
@@ -14,12 +20,18 @@ class BeatCharacterSlot {
 
   BeatCharacterSlot({
     required this.position,
+    this.castIndex = 0,
     this.actionTags = const [],
     this.positivePrompt = "",
     this.negativePrompt = "",
   });
 
-  factory BeatCharacterSlot.fromJson(Map<String, dynamic> json) {
+  /// [fallbackCastIndex] is the slot's position in its beat, used when the
+  /// JSON predates per-slot cast identity.
+  factory BeatCharacterSlot.fromJson(
+    Map<String, dynamic> json, {
+    int fallbackCastIndex = 0,
+  }) {
     // Backward-compatible: detect the legacy single-string `actionTag` field
     // vs the new `actionTags` list. Old saved cascades carry `actionTag`.
     final List<String> tags;
@@ -31,6 +43,7 @@ class BeatCharacterSlot {
     }
     return BeatCharacterSlot(
       position: NaiCoordinate.fromJson(json['position']),
+      castIndex: (json['castIndex'] as int?) ?? fallbackCastIndex,
       actionTags: tags,
       positivePrompt: json['positivePrompt'] ?? "",
       negativePrompt: json['negativePrompt'] ?? "",
@@ -39,6 +52,7 @@ class BeatCharacterSlot {
 
   Map<String, dynamic> toJson() => {
     'position': position.toJson(),
+    'castIndex': castIndex,
     'actionTags': actionTags,
     'positivePrompt': positivePrompt,
     'negativePrompt': negativePrompt,
@@ -46,12 +60,14 @@ class BeatCharacterSlot {
 
   BeatCharacterSlot copyWith({
     NaiCoordinate? position,
+    int? castIndex,
     List<String>? actionTags,
     String? positivePrompt,
     String? negativePrompt,
   }) {
     return BeatCharacterSlot(
       position: position ?? this.position,
+      castIndex: castIndex ?? this.castIndex,
       actionTags: actionTags ?? this.actionTags,
       positivePrompt: positivePrompt ?? this.positivePrompt,
       negativePrompt: negativePrompt ?? this.negativePrompt,
@@ -97,9 +113,10 @@ class CascadeBeat {
   });
 
   factory CascadeBeat.fromJson(Map<String, dynamic> json) => CascadeBeat(
-    characterSlots: (json['characterSlots'] as List)
-        .map((e) => BeatCharacterSlot.fromJson(e))
-        .toList(),
+    characterSlots: [
+      for (final (i, e) in (json['characterSlots'] as List).indexed)
+        BeatCharacterSlot.fromJson(e, fallbackCastIndex: i),
+    ],
     sceneTags: json['sceneTags'] ?? "",
     environmentTags: json['environmentTags'],
     sampler: json['sampler'] ?? "k_euler_ancestral",

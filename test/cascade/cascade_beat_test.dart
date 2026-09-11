@@ -87,6 +87,80 @@ void main() {
       expect(explicit.toJson().containsKey('useCoords'), isTrue);
     });
 
+    test('castIndex round-trips and legacy slots fall back to position', () {
+      final beat = CascadeBeat(
+        characterSlots: [
+          BeatCharacterSlot(
+            position: NaiCoordinate(x: 0.5, y: 0.5),
+            castIndex: 2,
+          ),
+          BeatCharacterSlot(
+            position: NaiCoordinate(x: 0.5, y: 0.5),
+            castIndex: 0,
+          ),
+        ],
+        environmentTags: '',
+      );
+      final restored = CascadeBeat.fromJson(beat.toJson());
+      expect(restored.characterSlots.map((s) => s.castIndex), [2, 0]);
+
+      final legacy = CascadeBeat.fromJson({
+        'characterSlots': [
+          {
+            'position': {'x': 0.5, 'y': 0.5},
+          },
+          {
+            'position': {'x': 0.5, 'y': 0.5},
+          },
+          {
+            'position': {'x': 0.5, 'y': 0.5},
+          },
+        ],
+        'environmentTags': '',
+      });
+      expect(legacy.characterSlots.map((s) => s.castIndex), [0, 1, 2]);
+    });
+
+    test(
+      'stitching pairs each slot with its cast member, not its position',
+      () {
+        final beat = CascadeBeat(
+          characterSlots: [
+            BeatCharacterSlot(
+              position: NaiCoordinate(x: 0.5, y: 0.5),
+              castIndex: 1,
+              positivePrompt: 'waving',
+            ),
+          ],
+          environmentTags: '',
+        );
+        final request = CascadeStitchingService.render(
+          beat: beat,
+          appearances: const ['1girl, red hair', '1boy, black hair'],
+        );
+        expect(request.characters.single.prompt, '1boy, black hair, waving');
+      },
+    );
+
+    test('stitching rejects a slot whose cast member has no appearance', () {
+      final beat = CascadeBeat(
+        characterSlots: [
+          BeatCharacterSlot(
+            position: NaiCoordinate(x: 0.5, y: 0.5),
+            castIndex: 3,
+          ),
+        ],
+        environmentTags: '',
+      );
+      expect(
+        () => CascadeStitchingService.render(
+          beat: beat,
+          appearances: const ['a'],
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('legacy JSON without sceneTags loads with empty string', () {
       final legacyJson = {
         'characterSlots': [

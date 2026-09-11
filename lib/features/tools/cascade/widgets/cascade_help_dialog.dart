@@ -62,7 +62,7 @@ void showCascadeHelpDialog(BuildContext context) {
                 const SizedBox(height: 8),
                 _bulletRow(t, 'Positive Prompt', 'Per-beat character tags (e.g., "happy, sitting")', mobile),
                 _bulletRow(t, 'Negative Prompt', 'Per-beat undesired content for this character', mobile),
-                _bulletRow(t, 'Add / remove', 'Change how many characters appear in this beat', mobile),
+                _bulletRow(t, 'Add / remove', 'Pick which cast members appear in this beat, or add a new character. A character keeps their number and appearance on every beat.', mobile),
                 _bulletRow(t, 'Drag handle', 'Reorder characters in this beat', mobile),
                 _bulletRow(t, 'MANUAL / AI', 'Toggle placement per beat. The position grid matches the beat\'s aspect ratio.', mobile),
                 _bulletRow(t, 'Action Tags', 'Define interactions between characters for this beat', mobile),

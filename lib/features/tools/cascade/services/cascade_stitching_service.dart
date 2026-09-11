@@ -31,7 +31,8 @@ class CascadeStitchingService {
   /// Renders a single [CascadeBeat] into a [CascadeStitchedRequest].
   ///
   /// [appearances] should be a list of character appearance strings (e.g. "1girl, miku, blue hair").
-  /// The order of [appearances] must match the indices of the character slots in the beat.
+  /// [appearances] is indexed by [BeatCharacterSlot.castIndex], so every slot
+  /// on the beat must have a cast index inside the list.
   /// [globalStyle] is an optional style string from the style tool.
   /// [manualPrompt] is an optional additional prompt from the user during casting.
   static CascadeStitchedRequest render({
@@ -44,9 +45,11 @@ class CascadeStitchingService {
     List<String> activeStyleNames = const [],
     List<PromptStyle> availableStyles = const [],
   }) {
-    if (appearances.length < beat.characterSlots.length) {
-      throw ArgumentError(
-          "Not enough character appearances provided. Expected ${beat.characterSlots.length}, got ${appearances.length}");
+    for (final slot in beat.characterSlots) {
+      if (slot.castIndex < 0 || slot.castIndex >= appearances.length) {
+        throw ArgumentError(
+            "Not enough character appearances provided. Slot needs cast index ${slot.castIndex}, got ${appearances.length} appearances");
+      }
     }
 
     // Build the base caption, front-loaded in NovelAI base-prompt order:
@@ -99,7 +102,7 @@ class CascadeStitchingService {
     final List<NaiCharacter> characters = [];
     for (int i = 0; i < beat.characterSlots.length; i++) {
       final slot = beat.characterSlots[i];
-      final appearance = appearances[i];
+      final appearance = appearances[slot.castIndex];
 
       // Final Character Prompt = [ActionTags] + [UserCharacterAppearance] + [SlotPositivePrompt]
       // Note: each action tag is in format "source#action", "target#action", or "mutual#action".

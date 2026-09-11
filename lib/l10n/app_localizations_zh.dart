@@ -1733,6 +1733,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cascadeLinkAction => '关联动作';
 
   @override
+  String cascadeCastMemberN(int n) {
+    return '角色 $n';
+  }
+
+  @override
+  String get cascadeNewCharacter => '新角色';
+
+  @override
   String get cascadeAddCharacter => '添加角色';
 
   @override

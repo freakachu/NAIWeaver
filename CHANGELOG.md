@@ -3,12 +3,12 @@
 ## Unreleased
 
 ### New
-- **Cascade editor: per-beat roster and placement.** Add, remove, or drag-reorder character slots on a single beat (the cast sheet grows to the largest beat). A MANUAL / AI toggle on the slots header overrides placement per beat; older cascades keep the cascade-level default until you flip it. The position grid / freeform canvas now matches the beat's aspect ratio instead of a square.
+- **Cascade editor: per-beat roster and placement.** Add, remove, or drag-reorder character slots on a single beat. Each slot is bound to a cast member, so dropping Character 1 from one beat leaves Character 2 as Character 2 (same appearance, same prompt) rather than shifting everyone down. The add button offers cast members missing from the beat first, then a new character; a character no beat uses any more leaves the cast. Removing a slot also drops interaction tags whose partner left with it. A MANUAL / AI toggle on the slots header overrides placement per beat; older cascades keep the cascade-level default until you flip it. The position grid / freeform canvas now matches the beat's aspect ratio instead of a square.
 - **Cascade interactions pick any partner.** The link button on a slot opens a sheet with WITH chips for the other characters on that beat, and a compact direction button that cycles **A → B** → **A ↔ B** (mutual) → **A ← B** (reverse, same character order, flipped arrow).
 
 ### Fixes
-- **Cascade prompt fields: tag suggestions actually insert.** Tapping a chip unfocused the field first, so the overlay vanished (and the cursor went invalid) before the insert ran. Suggestion chips now take the tap on pointer-down, and insert still works if the selection is already gone.
-- **Cast sheet character fields follow the selected beat.** Appearance boxes listed every slot in the cascade, even when the current beat had fewer characters. Only slots that exist on the selected beat are shown; switching to a larger beat brings the extra fields back with their values intact.
+- **Cascade prompt fields: tag suggestions actually insert.** Tapping a chip unfocused the field first, so the overlay vanished (and the cursor went invalid) before the insert ran. The suggestion overlay now sits inside the field's tap region so a chip tap no longer unfocuses the field, and insert still works if the selection is already gone.
+- **Cast sheet character fields follow the selected beat.** Appearance boxes listed every slot in the cascade, even when the current beat had fewer characters. Only the cast members on the selected beat are shown, labelled by character, and each field keeps its value when you switch beats.
 - **Cascade album button tracks the viewed beat.** Adding a beat to an album, then tapping another beat, still checked the previous file and refused to add the image on screen. Each beat now remembers its own saved filename: checks are membership of *this* image, clicking an album adds *this* image, and removing it from the gallery album list updates the checks. Cascade (and img2img) generation also records the new file on auto-save instead of keeping a stale name.
 
 ## v0.9.4

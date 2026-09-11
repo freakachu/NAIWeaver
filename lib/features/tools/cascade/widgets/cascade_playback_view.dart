@@ -239,11 +239,12 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
     final state = notifier.state;
     final beatIndex = state.selectedBeatIndex ?? 0;
     final beats = state.activeCascade?.beats ?? const [];
-    // Appearances are stored cascade-wide by slot index, but a given beat
-    // may have fewer slots. Only show fields that exist on the selected beat.
-    final slotCount = (beatIndex >= 0 && beatIndex < beats.length)
-        ? beats[beatIndex].characterSlots.length
-        : 0;
+    // Appearances are stored cascade-wide by cast index. Show one field per
+    // cast member on the selected beat, in slot order, each bound to that
+    // member's appearance so the field survives slot removal/reorder.
+    final castOnBeat = (beatIndex >= 0 && beatIndex < beats.length)
+        ? beats[beatIndex].characterSlots.map((s) => s.castIndex).toList()
+        : const <int>[];
 
     return Column(
       children: [
@@ -252,8 +253,9 @@ class _CascadePlaybackViewState extends State<CascadePlaybackView> {
           child: ListView.builder(
             primary: false,
             scrollDirection: Axis.horizontal,
-            itemCount: slotCount,
-            itemBuilder: (context, index) {
+            itemCount: castOnBeat.length,
+            itemBuilder: (context, slot) {
+              final index = castOnBeat[slot];
               final focusNode = _appearanceFocusNodes.putIfAbsent(index, () => FocusNode());
               return Container(
                 width: 150,

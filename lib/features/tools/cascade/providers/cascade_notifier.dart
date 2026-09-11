@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prompt_cascade.dart';
@@ -226,8 +225,9 @@ class CascadeNotifier extends ChangeNotifier {
   void selectBeat(int index) {
     if (_state.activeCascade == null ||
         index < 0 ||
-        index >= _state.activeCascade!.beats.length)
+        index >= _state.activeCascade!.beats.length) {
       return;
+    }
     _state = _state.copyWith(selectedBeatIndex: index);
     notifyListeners();
   }
@@ -244,10 +244,7 @@ class CascadeNotifier extends ChangeNotifier {
       beats: [
         // Start with one empty beat
         CascadeBeat(
-          characterSlots: List.generate(
-            characterCount,
-            (_) => BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5)),
-          ),
+          characterSlots: List.generate(characterCount, _emptySlot),
           environmentTags: "",
           useCoords: useCoords,
         ),
@@ -310,13 +307,13 @@ class CascadeNotifier extends ChangeNotifier {
     final last = _state.activeCascade!.beats.isNotEmpty
         ? _state.activeCascade!.beats.last
         : null;
-    final slotCount =
-        last?.characterSlots.length ?? _state.activeCascade!.characterCount;
+    // A new beat opens with the same cast as the previous one (fresh slots,
+    // same characters) so a story keeps its people unless the user says so.
+    final castIndices = last != null
+        ? last.characterSlots.map((s) => s.castIndex).toList()
+        : List.generate(_state.activeCascade!.characterCount, (i) => i);
     final newBeat = CascadeBeat(
-      characterSlots: List.generate(
-        slotCount,
-        (_) => BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5)),
-      ),
+      characterSlots: castIndices.map(_emptySlot).toList(),
       environmentTags: last?.environmentTags ?? "",
       width: last?.width ?? 832,
       height: last?.height ?? 1216,
@@ -335,8 +332,9 @@ class CascadeNotifier extends ChangeNotifier {
   void cloneBeat(int index) {
     if (_state.activeCascade == null ||
         index < 0 ||
-        index >= _state.activeCascade!.beats.length)
+        index >= _state.activeCascade!.beats.length) {
       return;
+    }
 
     final sourceBeat = _state.activeCascade!.beats[index];
     final clonedBeat = CascadeBeat(
@@ -344,6 +342,7 @@ class CascadeNotifier extends ChangeNotifier {
           .map(
             (s) => BeatCharacterSlot(
               position: s.position,
+              castIndex: s.castIndex,
               actionTags: List.of(s.actionTags),
               positivePrompt: s.positivePrompt,
               negativePrompt: s.negativePrompt,
@@ -378,8 +377,10 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void removeBeat(int index) {
-    if (_state.activeCascade == null || _state.activeCascade!.beats.length <= 1)
+    if (_state.activeCascade == null ||
+        _state.activeCascade!.beats.length <= 1) {
       return;
+    }
 
     final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats)
       ..removeAt(index);
@@ -491,8 +492,9 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void updateActiveBeat(CascadeBeat updatedBeat) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
       return;
+    }
 
     final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
     updatedBeats[_state.selectedBeatIndex!] = updatedBeat;
@@ -503,48 +505,96 @@ class CascadeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  static BeatCharacterSlot _emptySlot() =>
-      BeatCharacterSlot(position: NaiCoordinate(x: 0.5, y: 0.5));
+  static BeatCharacterSlot _emptySlot(int castIndex) => BeatCharacterSlot(
+    position: NaiCoordinate(x: 0.5, y: 0.5),
+    castIndex: castIndex,
+  );
 
   /// Keeps [PromptCascade.characterCount] and cast-time appearances in sync
-  /// with the largest per-beat slot list.
+  /// with the cast members actually referenced by some beat. Members no beat
+  /// uses any more are dropped and the survivors renumbered contiguously, with
+  /// each appearance following its character.
   void _syncCastRoster(PromptCascade cascade) {
-    final maxSlots = cascade.beats.fold<int>(
-      0,
-      (m, b) => math.max(m, b.characterSlots.length),
-    );
-    var appearances = List<String>.from(_state.characterAppearances);
-    while (appearances.length < maxSlots) {
-      appearances.add('');
-    }
-    if (appearances.length > maxSlots) {
-      appearances = appearances.sublist(0, maxSlots);
-    }
+    final used = <int>{
+      for (final b in cascade.beats)
+        for (final s in b.characterSlots) s.castIndex,
+    }.toList()..sort();
+    final remap = {for (final (i, old) in used.indexed) old: i};
+
+    final beats = cascade.beats
+        .map(
+          (b) => b.copyWith(
+            characterSlots: [
+              for (final s in b.characterSlots)
+                s.castIndex == remap[s.castIndex]
+                    ? s
+                    : s.copyWith(castIndex: remap[s.castIndex]),
+            ],
+          ),
+        )
+        .toList();
+
+    final old = _state.characterAppearances;
+    final appearances = [for (final i in used) i < old.length ? old[i] : ''];
+
     _state = _state.copyWith(
-      activeCascade: cascade.copyWith(characterCount: maxSlots),
+      activeCascade: cascade.copyWith(
+        beats: beats,
+        characterCount: used.length,
+      ),
       characterAppearances: appearances,
     );
   }
 
-  void addCharacterToActiveBeat() {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
-      return;
+  /// Cast members not yet on the selected beat, in cast order.
+  List<int> castMembersMissingFromActiveBeat() {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return const [];
+    }
     final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
+    final present = beat.characterSlots.map((s) => s.castIndex).toSet();
+    return [
+      for (int i = 0; i < _state.activeCascade!.characterCount; i++)
+        if (!present.contains(i)) i,
+    ];
+  }
+
+  /// Adds a slot to the selected beat. [castIndex] picks an existing cast
+  /// member who is not yet on the beat; omit it to add a brand-new character
+  /// to the cast. Both the beat's slot count and the cast size are capped at
+  /// [PromptCascade.maxCharacterSlots].
+  void addCharacterToActiveBeat({int? castIndex}) {
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
+      return;
+    }
+    final cascade = _state.activeCascade!;
+    final beat = cascade.beats[_state.selectedBeatIndex!];
     if (beat.characterSlots.length >= PromptCascade.maxCharacterSlots) return;
 
+    final int who;
+    if (castIndex != null) {
+      if (castIndex < 0 || castIndex >= cascade.characterCount) return;
+      if (beat.characterSlots.any((s) => s.castIndex == castIndex)) return;
+      who = castIndex;
+    } else {
+      if (cascade.characterCount >= PromptCascade.maxCharacterSlots) return;
+      who = cascade.characterCount;
+    }
+
     final updatedSlots = List<BeatCharacterSlot>.from(beat.characterSlots)
-      ..add(_emptySlot());
-    final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
+      ..add(_emptySlot(who));
+    final updatedBeats = List<CascadeBeat>.from(cascade.beats);
     updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
       characterSlots: updatedSlots,
     );
-    _syncCastRoster(_state.activeCascade!.copyWith(beats: updatedBeats));
+    _syncCastRoster(cascade.copyWith(beats: updatedBeats));
     notifyListeners();
   }
 
   void removeCharacterFromActiveBeat(int index) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
       return;
+    }
     final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
     if (index < 0 || index >= beat.characterSlots.length) return;
 
@@ -552,15 +602,52 @@ class CascadeNotifier extends ChangeNotifier {
       ..removeAt(index);
     final updatedBeats = List<CascadeBeat>.from(_state.activeCascade!.beats);
     updatedBeats[_state.selectedBeatIndex!] = beat.copyWith(
-      characterSlots: updatedSlots,
+      characterSlots: pruneOrphanActionTags(updatedSlots),
     );
     _syncCastRoster(_state.activeCascade!.copyWith(beats: updatedBeats));
     notifyListeners();
   }
 
+  /// Every interaction tags both parties (`source#x` + `target#x`, or
+  /// `mutual#x` on each). A tag whose action name appears on no *other* slot
+  /// has lost its partner, typically because that slot was removed, and is
+  /// dropped so a lone `target#hug` never reaches the prompt.
+  @visibleForTesting
+  static List<BeatCharacterSlot> pruneOrphanActionTags(
+    List<BeatCharacterSlot> slots,
+  ) {
+    String actionOf(String tag) {
+      final hash = tag.indexOf('#');
+      return hash < 0 ? tag : tag.substring(hash + 1);
+    }
+
+    bool hasPartner(int self, String tag) {
+      for (final (j, other) in slots.indexed) {
+        if (j == self) continue;
+        if (other.actionTags.any((o) => actionOf(o) == actionOf(tag))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return [
+      for (final (i, slot) in slots.indexed)
+        slot.actionTags.every((tag) => hasPartner(i, tag))
+            ? slot
+            : slot.copyWith(
+                actionTags: [
+                  for (final tag in slot.actionTags)
+                    if (hasPartner(i, tag)) tag,
+                ],
+              ),
+    ];
+  }
+
   void reorderCharactersInActiveBeat(int oldIndex, int newIndex) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
       return;
+    }
     final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
     if (oldIndex < 0 || oldIndex >= beat.characterSlots.length) return;
     var dest = newIndex;
@@ -574,8 +661,9 @@ class CascadeNotifier extends ChangeNotifier {
   }
 
   void setActiveBeatUseCoords(bool useCoords) {
-    if (_state.activeCascade == null || _state.selectedBeatIndex == null)
+    if (_state.activeCascade == null || _state.selectedBeatIndex == null) {
       return;
+    }
     final beat = _state.activeCascade!.beats[_state.selectedBeatIndex!];
     updateActiveBeat(beat.copyWith(useCoords: useCoords));
   }

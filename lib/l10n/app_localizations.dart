@@ -3316,6 +3316,18 @@ abstract class AppLocalizations {
   /// **'Link Action'**
   String get cascadeLinkAction;
 
+  /// No description provided for @cascadeCastMemberN.
+  ///
+  /// In en, this message translates to:
+  /// **'CHARACTER {n}'**
+  String cascadeCastMemberN(int n);
+
+  /// No description provided for @cascadeNewCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'New character'**
+  String get cascadeNewCharacter;
+
   /// No description provided for @cascadeAddCharacter.
   ///
   /// In en, this message translates to:

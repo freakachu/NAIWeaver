@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../../core/l10n/l10n_extensions.dart';
 import '../../../../core/models/nai_model.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/theme/vision_tokens.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/utils/app_snackbar.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/tag_suggestion_helper.dart';
@@ -267,7 +269,9 @@ class _DirectorViewState extends State<DirectorView> {
                   children: [
                     for (int i = 0; i < beat.characterSlots.length; i++)
                       KeyedSubtree(
-                        key: ValueKey('cascade-slot-$i'),
+                        key: ValueKey(
+                          'cascade-slot-${beat.characterSlots[i].castIndex}',
+                        ),
                         child: _buildSlotItem(
                           context,
                           i,
@@ -305,37 +309,66 @@ class _DirectorViewState extends State<DirectorView> {
   }
 
   Widget _buildCharacterSlotsHeader(
-    dynamic l,
-    dynamic t,
+    AppLocalizations l,
+    VisionTokens t,
     CascadeBeat beat,
     CascadeNotifier notifier,
     bool useCoords,
   ) {
     final slotCount = beat.characterSlots.length;
-    final canAdd = slotCount < PromptCascade.maxCharacterSlots;
+    final castCount = notifier.state.activeCascade?.characterCount ?? 0;
+    final missing = notifier.castMembersMissingFromActiveBeat();
+    final canAddNew = castCount < PromptCascade.maxCharacterSlots;
+    final canAdd =
+        slotCount < PromptCascade.maxCharacterSlots &&
+        (missing.isNotEmpty || canAddNew);
+    final menuStyle = TextStyle(
+      color: t.textPrimary,
+      fontSize: t.fontSize(10),
+      letterSpacing: 1,
+    );
     return Row(
       children: [
         Expanded(child: _buildSectionHeader(l.cascadeCharacterSlots)),
         _placementToggle(l, t, useCoords, notifier),
         const SizedBox(width: 8),
-        IconButton(
+        // Existing cast members who are absent from this beat come first so
+        // "C2 alone in this shot" is one tap; a fresh character is last.
+        PopupMenuButton<int>(
           tooltip: l.cascadeAddCharacter,
-          onPressed: canAdd ? notifier.addCharacterToActiveBeat : null,
-          icon: Icon(
+          enabled: canAdd,
+          color: t.surfaceHigh,
+          padding: const EdgeInsets.all(6),
+          constraints: const BoxConstraints(minWidth: 160),
+          onSelected: (v) =>
+              notifier.addCharacterToActiveBeat(castIndex: v < 0 ? null : v),
+          itemBuilder: (_) => [
+            for (final i in missing)
+              PopupMenuItem<int>(
+                value: i,
+                height: 36,
+                child: Text(l.cascadeCastMemberN(i + 1), style: menuStyle),
+              ),
+            if (canAddNew)
+              PopupMenuItem<int>(
+                value: -1,
+                height: 36,
+                child: Text(l.cascadeNewCharacter, style: menuStyle),
+              ),
+          ],
+          child: Icon(
             Icons.person_add_alt_1,
             size: 18,
             color: canAdd ? t.accentCascade : t.textMinimal,
           ),
-          constraints: const BoxConstraints(),
-          padding: const EdgeInsets.all(6),
         ),
       ],
     );
   }
 
   Widget _placementToggle(
-    dynamic l,
-    dynamic t,
+    AppLocalizations l,
+    VisionTokens t,
     bool useCoords,
     CascadeNotifier notifier,
   ) {
@@ -559,7 +592,7 @@ class _DirectorViewState extends State<DirectorView> {
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  '${index + 1}',
+                  '${slot.castIndex + 1}',
                   style: TextStyle(
                     color: t.background,
                     fontWeight: FontWeight.bold,
@@ -569,7 +602,7 @@ class _DirectorViewState extends State<DirectorView> {
               ),
               const SizedBox(width: 12),
               Text(
-                l.cascadeCharacterSlotN(index + 1),
+                l.cascadeCastMemberN(slot.castIndex + 1),
                 style: TextStyle(
                   color: t.textPrimary,
                   fontSize: t.fontSize(11),
@@ -866,7 +899,7 @@ class _DirectorViewState extends State<DirectorView> {
             prompt: '',
             uc: '',
             center: NaiCoordinate(x: 0.5, y: 0.5),
-            name: 'C${e.key + 1}',
+            name: 'C${e.value.castIndex + 1}',
           ),
         )
         .toList();

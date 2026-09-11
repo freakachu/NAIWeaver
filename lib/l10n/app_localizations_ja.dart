@@ -1739,6 +1739,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cascadeLinkAction => 'アクションをリンク';
 
   @override
+  String cascadeCastMemberN(int n) {
+    return 'キャラクター $n';
+  }
+
+  @override
+  String get cascadeNewCharacter => '新しいキャラクター';
+
+  @override
   String get cascadeAddCharacter => 'キャラクターを追加';
 
   @override
